@@ -26,11 +26,13 @@
                 Bienvenido, <span class="font-medium">{{ user.username }}</span>. <br class="sm:hidden">
                 <span class="font-medium text-gray-800">Próximamente:</span> productos, ventas y reportes.
             </p>
-            <div class="mt-4 w-16 h-1 bg-indigo-200 mx-auto rounded-full"></div>
+             <div class="mt-4 w-16 h-1 bg-indigo-200 mx-auto rounded-full"></div>
+            {% if user.is_superuser %}
+                <a href="{% url 'registrar_usuario' %}" class="block text-sm text-indigo-600 hover:underline mt-4">
+                    Registrar usuario
+                </a>
+            {% endif %}
             <form method="post" action="{% url 'logout' %}" class="mt-6">
-                {% csrf_token %}
-                <button type="submit" class="text-sm text-indigo-600 hover:underline">Cerrar sesión</button>
-            </form>
         </div>
     </main>
 
