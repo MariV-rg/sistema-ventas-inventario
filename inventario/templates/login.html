@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+
+    <header class="bg-gray-800 text-white py-6 shadow-md">
+        <div class="container mx-auto px-4 flex items-center justify-center gap-4">
+            <h1 class="text-2xl md:text-3xl font-semibold tracking-wide">
+                Sistema de Gestión de Ventas e Inventario
+            </h1>
+        </div>
+    </header>
+
+    <main class="flex items-center justify-center min-h-[70vh] px-4 py-8 bg-gray-50">
+        <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+
+            <h2 class="text-xl font-semibold text-gray-800 mb-6 text-center">
+                Iniciar sesión
+            </h2>
+
+            {% if form.non_field_errors %}
+                <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+
+                <div>
+                    <label for="id_username" class="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+                    <input type="text" name="username" id="id_username" required
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    {% if form.username.errors %}
+                        <p class="text-red-600 text-sm mt-1">{{ form.username.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                    <input type="password" name="password" id="id_password" required
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    {% if form.password.errors %}
+                        <p class="text-red-600 text-sm mt-1">{{ form.password.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <input type="hidden" name="next" value="{{ next }}">
+
+                <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg py-2 transition-colors">
+                    Entrar
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-gray-300 text-center py-4 text-sm border-t border-gray-700">
+        <div class="container mx-auto px-4">
+            <p class="tracking-wide">Proyecto ADSO - SENA</p>
+        </div>
+    </footer>
+
+</body>
+</html>

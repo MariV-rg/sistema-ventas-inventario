@@ -20,13 +20,17 @@
         </div>
     </header>
 
-    <main class="flex items-center justify-center min-h-[70vh] px-4 py-8 bg-gray-50">
+    <    <main class="flex items-center justify-center min-h-[70vh] px-4 py-8 bg-gray-50">
         <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl w-full text-center transition-all hover:shadow-xl">
             <p class="text-lg md:text-xl text-gray-700 font-light leading-relaxed">
-                Bienvenido al sistema. <br class="sm:hidden">
+                Bienvenido, <span class="font-medium">{{ user.username }}</span>. <br class="sm:hidden">
                 <span class="font-medium text-gray-800">Próximamente:</span> productos, ventas y reportes.
             </p>
             <div class="mt-4 w-16 h-1 bg-indigo-200 mx-auto rounded-full"></div>
+            <form method="post" action="{% url 'logout' %}" class="mt-6">
+                {% csrf_token %}
+                <button type="submit" class="text-sm text-indigo-600 hover:underline">Cerrar sesión</button>
+            </form>
         </div>
     </main>
 
