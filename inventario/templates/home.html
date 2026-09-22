@@ -22,11 +22,29 @@
 
     <main class="flex items-center justify-center min-h-[70vh] px-4 py-8 bg-gray-50">
         <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl w-full text-center transition-all hover:shadow-xl">
+                        {% if messages %}
+                {% for message in messages %}
+                    <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
             <p class="text-lg md:text-xl text-gray-700 font-light leading-relaxed">
-                Bienvenido al sistema. <br class="sm:hidden">
+                Bienvenido, <span class="font-medium">{{ user.username }}</span>. <br class="sm:hidden">
                 <span class="font-medium text-gray-800">Próximamente:</span> productos, ventas y reportes.
             </p>
-            <div class="mt-4 w-16 h-1 bg-indigo-200 mx-auto rounded-full"></div>
+             <div class="mt-4 w-16 h-1 bg-indigo-200 mx-auto rounded-full"></div>
+            {% if es_admin %}
+                <a href="{% url 'registrar_usuario' %}" class="block text-sm text-indigo-600 hover:underline mt-4">
+                    Registrar usuario
+                </a>
+            {% endif %}
+            <form method="post" action="{% url 'logout' %}" class="mt-6">
+                {% csrf_token %}
+                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline transition-colors">
+                    Cerrar sesión
+                </button>
+            </form>
         </div>
     </main>
 
