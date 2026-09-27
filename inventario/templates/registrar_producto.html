@@ -1,0 +1,107 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar producto - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+
+    <header class="bg-gray-800 text-white py-6 shadow-md">
+        <div class="container mx-auto px-4">
+            <h1 class="text-xl md:text-2xl font-semibold tracking-wide text-center">Registrar producto</h1>
+        </div>
+    </header>
+
+    <main class="flex items-center justify-center px-4 py-8">
+        <div class="bg-white rounded-xl shadow-lg p-8 max-w-lg w-full">
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="mb-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-700{% else %}bg-red-50 border border-red-200 text-red-700{% endif %} text-sm px-4 py-3">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                    {{ form.nombre }}
+                    {% if form.nombre.errors %}<p class="text-red-600 text-sm mt-1">{{ form.nombre.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                    {{ form.categoria }}
+                    {% if form.categoria.errors %}<p class="text-red-600 text-sm mt-1">{{ form.categoria.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de venta</label>
+                    {{ form.tipo_venta }}
+                </div>
+
+                <div id="campos-precio" class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" id="label-precio">Precio</label>
+                    {{ form.precio }}
+                    {% if form.precio.errors %}<p class="text-red-600 text-sm mt-1">{{ form.precio.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div id="campos-stock" class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Stock inicial</label>
+                    {{ form.stock }}
+                </div>
+
+                <div id="campos-stock-minimo" class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Stock mínimo (alerta)</label>
+                    {{ form.stock_minimo }}
+                </div>
+
+                <div id="campos-paquete" class="mb-4 border-t pt-4">
+                    <p class="text-sm text-gray-500 mb-2">Opcional: si también se vende por paquete (ej. pan)</p>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Unidades por paquete</label>
+                    {{ form.unidades_por_paquete }}
+                    <label class="block text-sm font-medium text-gray-700 mb-1 mt-3">Precio del paquete</label>
+                    {{ form.precio_paquete }}
+                </div>
+
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition-colors mt-4">
+                    Guardar producto
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        const tipoSelect = document.getElementById('id_tipo_venta');
+        const campoPrecio = document.getElementById('campos-precio');
+        const labelPrecio = document.getElementById('label-precio');
+        const campoStock = document.getElementById('campos-stock');
+        const campoStockMin = document.getElementById('campos-stock-minimo');
+        const campoPaquete = document.getElementById('campos-paquete');
+
+        function actualizarCampos() {
+            const tipo = tipoSelect.value;
+            const esLibre = tipo === 'LIBRE';
+
+            campoPrecio.classList.toggle('hidden', esLibre);
+            campoStock.classList.toggle('hidden', esLibre);
+            campoStockMin.classList.toggle('hidden', esLibre);
+
+            if (!esLibre) {
+                labelPrecio.textContent = tipo === 'PESO' ? 'Precio por kilo' : 'Precio por unidad';
+            }
+            campoPaquete.classList.toggle('hidden', tipo !== 'UNIDAD');
+        }
+
+        tipoSelect.addEventListener('change', actualizarCampos);
+        document.addEventListener('DOMContentLoaded', actualizarCampos);
+    </script>
+
+</body>
+</html>
