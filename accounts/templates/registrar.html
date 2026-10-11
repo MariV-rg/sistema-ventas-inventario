@@ -42,10 +42,12 @@
                 </div>
 
                 <div>
-                    <label for="id_rol" class="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                    {{ form.rol }}
-                    {% if form.rol.errors %}
-                        <p class="text-red-600 text-sm mt-1">{{ form.rol.errors.0 }}</p>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Roles</label>
+                    <div class="space-y-1 border border-gray-300 rounded-lg px-3 py-2">
+                        {{ form.roles }}
+                    </div>
+                    {% if form.roles.errors %}
+                        <p class="text-red-600 text-sm mt-1">{{ form.roles.errors.0 }}</p>
                     {% endif %}
                 </div>
 

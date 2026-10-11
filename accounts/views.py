@@ -1,25 +1,22 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
 from django.contrib.auth.models import User
-from .models import Perfil
+from .models import Perfil, Rol
 from .forms import RegistroUsuarioForm
+from .decorators import rol_requerido
 
 
 def es_administrador(user):
     '''
     Un superusuario (como el que creaste con createsuperuser) siempre puede.
-    Cualquier otro usuario necesita tener Perfil con rol Administrador.
+    Cualquier otro usuario necesita tener, entre sus roles, el de Administrador.
     '''
     if user.is_superuser:
         return True
-    return hasattr(user, 'perfil') and user.perfil.rol == Perfil.ADMINISTRADOR
+    return hasattr(user, 'perfil') and user.perfil.tiene_rol(Rol.ADMINISTRADOR)
 
 
-@login_required
+@rol_requerido(Rol.ADMINISTRADOR)
 def registrar_usuario(request):
-    if not es_administrador(request.user):
-        return redirect('home')
-
     exito = False
 
     if request.method == 'POST':
@@ -29,8 +26,9 @@ def registrar_usuario(request):
                 username=form.cleaned_data['username'],
                 password=form.cleaned_data['password1'],
             )
-            Perfil.objects.create(usuario=nuevo_usuario, rol=form.cleaned_data['rol'])
-            form = RegistroUsuarioForm()  # formulario limpio para registrar otro
+            perfil = Perfil.objects.create(usuario=nuevo_usuario)
+            perfil.roles.set(form.cleaned_data['roles'])
+            form = RegistroUsuarioForm()
             exito = True
     else:
         form = RegistroUsuarioForm()
