@@ -1,0 +1,90 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar producto - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+
+    <header class="bg-gray-800 text-white py-6 shadow-md">
+        <div class="container mx-auto px-4">
+            <h1 class="text-xl md:text-2xl font-semibold tracking-wide text-center">Registrar producto</h1>
+        </div>
+    </header>
+
+    <main class="flex items-center justify-center px-4 py-8">
+        <div class="bg-white rounded-xl shadow-lg p-8 max-w-lg w-full">
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="mb-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-700{% else %}bg-red-50 border border-red-200 text-red-700{% endif %} text-sm px-4 py-3">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="id_nombre">Nombre</label>
+                    {{ form.nombre }}
+                    {% if form.nombre.errors %}<p class="text-red-600 text-sm mt-1">{{ form.nombre.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="id_categoria">Categoría</label>
+                    {{ form.categoria }}
+                    {% if form.categoria.errors %}<p class="text-red-600 text-sm mt-1">{{ form.categoria.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div class="mb-4" id="bloque-unidad">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="id_unidad_base">Unidad base de inventario</label>
+                    {{ form.unidad_base }}
+                    {% if form.unidad_base.errors %}<p class="text-red-600 text-sm mt-1">{{ form.unidad_base.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="id_precio" id="label-precio">Precio</label>
+                    {{ form.precio }}
+                    {% if form.precio.errors %}<p class="text-red-600 text-sm mt-1">{{ form.precio.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="id_stock_minimo">Stock mínimo (alerta)</label>
+                    {{ form.stock_minimo }}
+                    {% if form.stock_minimo.errors %}<p class="text-red-600 text-sm mt-1">{{ form.stock_minimo.errors.0 }}</p>{% endif %}
+                </div>
+
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition-colors mt-2">
+                    Guardar producto
+                </button>
+            </form>
+
+            <a href="{% url 'lista_productos' %}" class="block text-center text-sm text-indigo-600 hover:underline mt-4">Ver productos</a>
+            <a href="{% url 'home' %}" class="block text-center text-sm text-indigo-600 hover:underline mt-2">Volver al inicio</a>
+        </div>
+    </main>
+
+    {{ categorias_peso|json_script:"categorias-peso" }}
+    <script>
+        const categoriasPeso = JSON.parse(document.getElementById('categorias-peso').textContent);
+        const selectCategoria = document.getElementById('id_categoria');
+        const bloqueUnidad = document.getElementById('bloque-unidad');
+        const labelPrecio = document.getElementById('label-precio');
+
+        function actualizarCampos() {
+            const esPeso = categoriasPeso.includes(parseInt(selectCategoria.value));
+            bloqueUnidad.classList.toggle('hidden', !esPeso);
+            labelPrecio.textContent = esPeso ? 'Precio por unidad base (ej. por kilo)' : 'Precio por unidad';
+        }
+
+        selectCategoria.addEventListener('change', actualizarCampos);
+        actualizarCampos();
+    </script>
+
+</body>
+</html>

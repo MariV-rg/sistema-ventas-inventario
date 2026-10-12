@@ -39,6 +39,9 @@
                 <a href="{% url 'registrar_usuario' %}" class="block text-sm text-indigo-600 hover:underline mt-4">
                     Registrar usuario
                 </a>
+                <a href="{% url 'lista_productos' %}" class="block text-sm text-indigo-600 hover:underline mt-2">
+                    Productos
+                </a>
             {% endif %}
             <form method="post" action="{% url 'logout' %}" class="mt-6">
                 {% csrf_token %}
