@@ -30,77 +30,60 @@
                 {% csrf_token %}
 
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="id_nombre">Nombre</label>
                     {{ form.nombre }}
                     {% if form.nombre.errors %}<p class="text-red-600 text-sm mt-1">{{ form.nombre.errors.0 }}</p>{% endif %}
                 </div>
 
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="id_categoria">Categoría</label>
                     {{ form.categoria }}
                     {% if form.categoria.errors %}<p class="text-red-600 text-sm mt-1">{{ form.categoria.errors.0 }}</p>{% endif %}
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de venta</label>
-                    {{ form.tipo_venta }}
+                <div class="mb-4" id="bloque-unidad">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="id_unidad_base">Unidad base de inventario</label>
+                    {{ form.unidad_base }}
+                    {% if form.unidad_base.errors %}<p class="text-red-600 text-sm mt-1">{{ form.unidad_base.errors.0 }}</p>{% endif %}
                 </div>
 
-                <div id="campos-precio" class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1" id="label-precio">Precio</label>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="id_precio" id="label-precio">Precio</label>
                     {{ form.precio }}
                     {% if form.precio.errors %}<p class="text-red-600 text-sm mt-1">{{ form.precio.errors.0 }}</p>{% endif %}
                 </div>
 
-                <div id="campos-stock" class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Stock inicial</label>
-                    {{ form.stock }}
-                </div>
-
-                <div id="campos-stock-minimo" class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Stock mínimo (alerta)</label>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="id_stock_minimo">Stock mínimo (alerta)</label>
                     {{ form.stock_minimo }}
+                    {% if form.stock_minimo.errors %}<p class="text-red-600 text-sm mt-1">{{ form.stock_minimo.errors.0 }}</p>{% endif %}
                 </div>
 
-                <div id="campos-paquete" class="mb-4 border-t pt-4">
-                    <p class="text-sm text-gray-500 mb-2">Opcional: si también se vende por paquete (ej. pan)</p>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Unidades por paquete</label>
-                    {{ form.unidades_por_paquete }}
-                    <label class="block text-sm font-medium text-gray-700 mb-1 mt-3">Precio del paquete</label>
-                    {{ form.precio_paquete }}
-                </div>
-
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition-colors mt-4">
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition-colors mt-2">
                     Guardar producto
                 </button>
             </form>
+
+            <a href="{% url 'lista_productos' %}" class="block text-center text-sm text-indigo-600 hover:underline mt-4">Ver productos</a>
+            <a href="{% url 'home' %}" class="block text-center text-sm text-indigo-600 hover:underline mt-2">Volver al inicio</a>
         </div>
     </main>
 
+    {{ categorias_peso|json_script:"categorias-peso" }}
     <script>
-        const tipoSelect = document.getElementById('id_tipo_venta');
-        const campoPrecio = document.getElementById('campos-precio');
+        const categoriasPeso = JSON.parse(document.getElementById('categorias-peso').textContent);
+        const selectCategoria = document.getElementById('id_categoria');
+        const bloqueUnidad = document.getElementById('bloque-unidad');
         const labelPrecio = document.getElementById('label-precio');
-        const campoStock = document.getElementById('campos-stock');
-        const campoStockMin = document.getElementById('campos-stock-minimo');
-        const campoPaquete = document.getElementById('campos-paquete');
 
         function actualizarCampos() {
-            const tipo = tipoSelect.value;
-            const esLibre = tipo === 'LIBRE';
-
-            campoPrecio.classList.toggle('hidden', esLibre);
-            campoStock.classList.toggle('hidden', esLibre);
-            campoStockMin.classList.toggle('hidden', esLibre);
-
-            if (!esLibre) {
-                labelPrecio.textContent = tipo === 'PESO' ? 'Precio por kilo' : 'Precio por unidad';
-            }
-            campoPaquete.classList.toggle('hidden', tipo !== 'UNIDAD');
+            const esPeso = categoriasPeso.includes(parseInt(selectCategoria.value));
+            bloqueUnidad.classList.toggle('hidden', !esPeso);
+            labelPrecio.textContent = esPeso ? 'Precio por unidad base (ej. por kilo)' : 'Precio por unidad';
         }
 
-        tipoSelect.addEventListener('change', actualizarCampos);
-        document.addEventListener('DOMContentLoaded', actualizarCampos);
+        selectCategoria.addEventListener('change', actualizarCampos);
+        actualizarCampos();
     </script>
 
 </body>

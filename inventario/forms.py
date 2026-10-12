@@ -1,59 +1,49 @@
 from django import forms
 from .models import Producto
 
+INPUT = 'w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400'
+
 
 class ProductoForm(forms.ModelForm):
+    '''
+    Formulario de producto. Se usa en HU5 (registrar) y se reutiliza en HU6 (editar)
+    pasándole instance=producto.
+    '''
+
     class Meta:
         model = Producto
-        fields = [
-            'nombre', 'categoria', 'tipo_venta',
-            'precio', 'stock', 'stock_minimo',
-            'unidades_por_paquete', 'precio_paquete',
-        ]
+        fields = ['nombre', 'categoria', 'precio', 'unidad_base', 'stock_minimo']
         widgets = {
-            'nombre': forms.TextInput(attrs={
-                'class': 'w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400'
-            }),
-            'categoria': forms.Select(attrs={
-                'class': 'w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400'
-            }),
-            'tipo_venta': forms.Select(attrs={
-                'class': 'w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400'
-            }),
-            'precio': forms.NumberInput(attrs={
-                'class': 'w-full rounded-lg border border-gray-300 px-3 py-2', 'step': '0.01'
-            }),
-            'stock': forms.NumberInput(attrs={
-                'class': 'w-full rounded-lg border border-gray-300 px-3 py-2', 'step': '0.001'
-            }),
-            'stock_minimo': forms.NumberInput(attrs={
-                'class': 'w-full rounded-lg border border-gray-300 px-3 py-2', 'step': '0.001'
-            }),
-            'unidades_por_paquete': forms.NumberInput(attrs={
-                'class': 'w-full rounded-lg border border-gray-300 px-3 py-2'
-            }),
-            'precio_paquete': forms.NumberInput(attrs={
-                'class': 'w-full rounded-lg border border-gray-300 px-3 py-2', 'step': '0.01'
-            }),
+            'nombre': forms.TextInput(attrs={'class': INPUT}),
+            'categoria': forms.Select(attrs={'class': INPUT + ' invalid:text-gray-400 [&>option]:text-gray-900'}),
+            'precio': forms.NumberInput(attrs={'class': INPUT, 'step': '0.01', 'min': '0'}),
+            'unidad_base': forms.Select(attrs={'class': INPUT}),
+            'stock_minimo': forms.NumberInput(attrs={'class': INPUT, 'step': '0.001', 'min': '0'}),
+        }
+        labels = {
+            'nombre': 'Nombre',
+            'categoria': 'Categoría',
+            'precio': 'Precio',
+            'unidad_base': 'Unidad base de inventario',
+            'stock_minimo': 'Stock mínimo (alerta)',
         }
 
-    def clean(self):
-        cleaned = super().clean()
-        tipo_venta = cleaned.get('tipo_venta')
-        precio = cleaned.get('precio')
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 5F: el stock mínimo es opcional; si se deja vacío queda en 0
+        self.fields['stock_minimo'].required = False
+        self.fields['categoria'].empty_label = 'Seleccione la categoría...'
+        self.fields['unidad_base'].choices = [('', 'Seleccione la unidad...')] + list(Producto.UNIDAD_BASE_CHOICES)
 
-        # 5D/5E/5F: Unidad y Peso necesitan precio (5G: Libre no lo exige)
-        if tipo_venta in (Producto.UNIDAD, Producto.PESO) and precio is None:
-            self.add_error('precio', 'Este producto necesita un precio (por unidad o por kilo).')
+    def clean_stock_minimo(self):
+        return self.cleaned_data.get('stock_minimo') or 0
 
-        # 5H: el paquete solo aplica a productos "Por unidad"
-        unidades_paquete = cleaned.get('unidades_por_paquete')
-        precio_paquete = cleaned.get('precio_paquete')
-        paquete_definido = unidades_paquete is not None or precio_paquete is not None
-
-        if paquete_definido and tipo_venta != Producto.UNIDAD:
-            self.add_error('unidades_por_paquete', 'El precio por paquete solo aplica a productos "Por unidad".')
-        if paquete_definido and (unidades_paquete is None or precio_paquete is None):
-            self.add_error('precio_paquete', 'Si define paquete, debe llenar tanto las unidades como el precio del paquete.')
-
-        return cleaned
+    # 5C: no repetir productos (sin importar mayúsculas). Al editar (HU6) se ignora a sí mismo.
+    def clean_nombre(self):
+        nombre = self.cleaned_data['nombre'].strip()
+        repetidos = Producto.objects.filter(nombre__iexact=nombre)
+        if self.instance.pk:
+            repetidos = repetidos.exclude(pk=self.instance.pk)
+        if repetidos.exists():
+            raise forms.ValidationError('Ya existe un producto con ese nombre.')
+        return nombre
