@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+
+    <header class="bg-gray-800 text-white py-6 shadow-md">
+        <div class="container mx-auto px-4">
+            <h1 class="text-xl md:text-2xl font-semibold tracking-wide text-center">Inventario</h1>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-4xl">
+
+        <div class="flex justify-between items-center mb-4">
+            <a href="{% url 'home' %}" class="text-sm text-indigo-600 hover:underline">Volver al inicio</a>
+            {# HU10: aviso con la cantidad de productos por debajo del mínimo #}
+            <a href="{% url 'alertas_stock' %}"
+               class="text-sm font-medium px-4 py-2 rounded-lg transition {% if cantidad_alertas %}bg-red-50 hover:bg-red-100 text-red-600{% else %}bg-gray-100 hover:bg-gray-200 text-gray-600{% endif %}">
+                Alertas de stock bajo ({{ cantidad_alertas }})
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Producto</th>
+                        <th class="px-4 py-3">Categoría</th>
+                        <th class="px-4 py-3">Disponible</th>
+                        <th class="px-4 py-3">Stock mínimo</th>
+                        <th class="px-4 py-3">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# HU9: cada fila muestra el producto y su cantidad disponible #}
+                    {% for p in productos %}
+                        <tr class="border-t">
+                            <td class="px-4 py-3 font-medium text-gray-800">{{ p.nombre }}</td>
+                            <td class="px-4 py-3">{{ p.categoria }}</td>
+                            <td class="px-4 py-3">
+                                {{ p.stock|floatformat:"-3" }}
+                                {% if p.categoria.es_peso_variable %}{% if p.unidad_base == 'KILO' %}kg{% else %}g{% endif %}{% else %}und{% endif %}
+                            </td>
+                            <td class="px-4 py-3">{{ p.stock_minimo|floatformat:"-3" }}</td>
+                            <td class="px-4 py-3">
+                                {% if p.stock < p.stock_minimo %}
+                                    <span class="inline-block bg-red-50 text-red-600 font-medium px-2.5 py-1 rounded-full text-xs">Stock bajo</span>
+                                {% else %}
+                                    <span class="inline-block bg-green-50 text-green-700 font-medium px-2.5 py-1 rounded-full text-xs">Normal</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-gray-500">Todavía no hay productos registrados.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+</body>
+</html>

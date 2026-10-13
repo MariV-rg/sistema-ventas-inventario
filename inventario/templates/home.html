@@ -42,6 +42,12 @@
                 <a href="{% url 'lista_productos' %}" class="block text-sm text-indigo-600 hover:underline mt-2">
                     Productos
                 </a>
+                <a href="{% url 'consultar_inventario' %}" class="block text-sm text-indigo-600 hover:underline mt-2">
+                    Inventario
+                </a>
+                <a href="{% url 'alertas_stock' %}" class="block text-sm text-indigo-600 hover:underline mt-2">
+                    Alertas de stock bajo
+                </a>
             {% endif %}
             <form method="post" action="{% url 'logout' %}" class="mt-6">
                 {% csrf_token %}
