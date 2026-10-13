@@ -2,7 +2,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import rol_requerido
 from accounts.models import Rol
@@ -118,6 +118,51 @@ def registrar_producto(request):
             return redirect('registrar_producto')
 
     return render(request, 'registrar_producto.html', {
+        'categorias': categorias,
+        'errors': errors,
+        'datos': datos,
+    })
+
+#HU6: editar producto
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def editar_producto(request, id):
+    # Solo se pueden editar productos activos (los "eliminados" de HU7 no aparecen)
+    producto = get_object_or_404(Producto, id=id, activo=True)
+    categorias = Categoria.objects.all()
+    errors = []
+
+    # Datos que se muestran en el formulario: los actuales del producto
+    datos = {
+        'nombre': producto.nombre,
+        'categoria': str(producto.categoria_id),
+        'precio': format(producto.precio, 'f'),
+        'unidad_base': producto.unidad_base,
+        'stock_minimo': format(producto.stock_minimo.normalize(), 'f'),
+    }
+
+    if request.method == 'POST':
+        # Si algo sale mal, el formulario conserva lo que el usuario escribió
+        datos = request.POST
+
+        # 6B: las mismas validaciones del registro (HU5).
+        # excluir_id evita que choque con su propio nombre.
+        errors, limpios = validar_producto(request.POST, excluir_id=producto.id)
+
+        # 6A: si todo está bien, se actualiza el producto
+        if not errors:
+            producto.nombre = limpios['nombre']
+            producto.categoria = limpios['categoria']
+            producto.precio = limpios['precio']
+            producto.unidad_base = limpios['unidad_base']
+            producto.stock_minimo = limpios['stock_minimo']
+            producto.save()
+
+            messages.success(request, f'Producto "{producto.nombre}" actualizado correctamente.')
+            return redirect('lista_productos')
+
+    return render(request, 'editar_producto.html', {
+        'producto': producto,
         'categorias': categorias,
         'errors': errors,
         'datos': datos,
