@@ -89,10 +89,14 @@ def home(request):
 
 @rol_requerido(Rol.ADMINISTRADOR)
 def lista_productos(request):
-    # Solo productos activos (HU7: "eliminar" los pone en activo=False)
-    productos = Producto.objects.filter(activo=True).select_related('categoria')
-    return render(request, 'productos_lista.html', {'productos': productos})
-
+    # HU8: los productos activos se muestran agrupados por categoría
+    # (HU7: "eliminar" los pone en activo=False y por eso no salen)
+    grupos = []
+    for categoria in Categoria.objects.all():
+        productos = list(Producto.objects.filter(activo=True, categoria=categoria))
+        if productos:
+            grupos.append({'categoria': categoria, 'productos': productos})
+    return render(request, 'productos_lista.html', {'grupos': grupos})
 
 @rol_requerido(Rol.ADMINISTRADOR)
 def registrar_producto(request):

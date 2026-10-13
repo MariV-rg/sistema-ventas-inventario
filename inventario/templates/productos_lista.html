@@ -45,7 +45,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for p in productos %}
+                    {% for grupo in grupos %}
+                        <tr class="bg-gray-100 border-t">
+                            <td colspan="6" class="px-4 py-2 text-sm font-semibold text-gray-700">
+                                {{ grupo.categoria }} ({{ grupo.productos|length }})
+                            </td>
+                    </tr>
+                    {% for p in grupo.productos %}
                         <tr class="border-t">
                             <td class="px-4 py-3 font-medium text-gray-800">{{ p.nombre }}</td>
                             <td class="px-4 py-3">{{ p.categoria }}</td>
@@ -71,13 +77,14 @@
                                 </form>
                             </td>
                         </tr>
+                    {% endfor %}
                     {% empty %}
                         <tr>
                             <td colspan="6" class="px-4 py-6 text-center text-gray-500">Todavía no hay productos registrados.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
-            </table>
+            </table>    
         </div>
     </main>
 
