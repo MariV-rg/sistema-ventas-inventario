@@ -2,7 +2,8 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from accounts.decorators import rol_requerido
 from accounts.models import Rol
@@ -88,10 +89,14 @@ def home(request):
 
 @rol_requerido(Rol.ADMINISTRADOR)
 def lista_productos(request):
-    # Solo productos activos (HU7: "eliminar" los pone en activo=False)
-    productos = Producto.objects.filter(activo=True).select_related('categoria')
-    return render(request, 'productos_lista.html', {'productos': productos})
-
+    # HU8: los productos activos se muestran agrupados por categoría
+    # (HU7: "eliminar" los pone en activo=False y por eso no salen)
+    grupos = []
+    for categoria in Categoria.objects.all():
+        productos = list(Producto.objects.filter(activo=True, categoria=categoria))
+        if productos:
+            grupos.append({'categoria': categoria, 'productos': productos})
+    return render(request, 'productos_lista.html', {'grupos': grupos})
 
 @rol_requerido(Rol.ADMINISTRADOR)
 def registrar_producto(request):
@@ -122,3 +127,62 @@ def registrar_producto(request):
         'errors': errors,
         'datos': datos,
     })
+
+#HU6: editar producto
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def editar_producto(request, id):
+    # Solo se pueden editar productos activos (los "eliminados" de HU7 no aparecen)
+    producto = get_object_or_404(Producto, id=id, activo=True)
+    categorias = Categoria.objects.all()
+    errors = []
+
+    # Datos que se muestran en el formulario: los actuales del producto
+    datos = {
+        'nombre': producto.nombre,
+        'categoria': str(producto.categoria_id),
+        'precio': format(producto.precio, 'f'),
+        'unidad_base': producto.unidad_base,
+        'stock_minimo': format(producto.stock_minimo.normalize(), 'f'),
+    }
+
+    if request.method == 'POST':
+        # Si algo sale mal, el formulario conserva lo que el usuario escribió
+        datos = request.POST
+
+        # 6B: las mismas validaciones del registro (HU5).
+        # excluir_id evita que choque con su propio nombre.
+        errors, limpios = validar_producto(request.POST, excluir_id=producto.id)
+
+        # 6A: si todo está bien, se actualiza el producto
+        if not errors:
+            producto.nombre = limpios['nombre']
+            producto.categoria = limpios['categoria']
+            producto.precio = limpios['precio']
+            producto.unidad_base = limpios['unidad_base']
+            producto.stock_minimo = limpios['stock_minimo']
+            producto.save()
+
+            messages.success(request, f'Producto "{producto.nombre}" actualizado correctamente.')
+            return redirect('lista_productos')
+
+    return render(request, 'editar_producto.html', {
+        'producto': producto,
+        'categorias': categorias,
+        'errors': errors,
+        'datos': datos,
+    })
+
+
+# HU7: eliminar producto
+
+@rol_requerido(Rol.ADMINISTRADOR)
+@require_POST
+def eliminar_producto(request, id):
+    # 7B: "eliminar" = marcar como inactivo (no se borra de la base de datos)
+    producto = get_object_or_404(Producto, id=id, activo=True)
+    producto.activo = False
+    producto.save(update_fields=['activo'])
+
+    messages.success(request, f'Producto "{producto.nombre}" eliminado correctamente.')
+    return redirect('lista_productos')

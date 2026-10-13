@@ -45,7 +45,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for p in productos %}
+                    {% for grupo in grupos %}
+                        <tr class="bg-gray-100 border-t">
+                            <td colspan="6" class="px-4 py-2 text-sm font-semibold text-gray-700">
+                                {{ grupo.categoria }} ({{ grupo.productos|length }})
+                            </td>
+                    </tr>
+                    {% for p in grupo.productos %}
                         <tr class="border-t">
                             <td class="px-4 py-3 font-medium text-gray-800">{{ p.nombre }}</td>
                             <td class="px-4 py-3">{{ p.categoria }}</td>
@@ -56,16 +62,29 @@
                             <td class="px-4 py-3">{{ p.stock_minimo }}</td>
                             <td class="px-4 py-3">
                                 {# HU6 (Laura): aquí va el botón/enlace "Editar" #}
-                                {# HU7 (Gabriela): aquí va el botón "Eliminar" (con confirmación Sí/No) #}
+                                <a href="{% url 'editar_producto' p.id %}"
+                                   class="inline-flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium px-3 py-1.5 rounded-lg transition">
+                                    Editar
+                                </a>
+                                {# HU7: botón "Eliminar" con confirmación #}
+                                <form action="{% url 'eliminar_producto' p.id %}" method="post" class="inline"
+                                        onsubmit="return confirm('¿Seguro que quieres eliminar el producto {{ p.nombre|escapejs }}?');">
+                                   {% csrf_token %}
+                                    <button type="submit"
+                                        class="inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 font-medium px-3 py-1.5 rounded-lg transition">
+                                        Eliminar
+                                    </button>
+                                </form>
                             </td>
                         </tr>
+                    {% endfor %}
                     {% empty %}
                         <tr>
                             <td colspan="6" class="px-4 py-6 text-center text-gray-500">Todavía no hay productos registrados.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
-            </table>
+            </table>    
         </div>
     </main>
 
