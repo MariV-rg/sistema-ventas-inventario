@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from accounts.decorators import rol_requerido
 from accounts.models import Rol
@@ -167,3 +168,17 @@ def editar_producto(request, id):
         'errors': errors,
         'datos': datos,
     })
+
+
+# HU7: eliminar producto
+
+@rol_requerido(Rol.ADMINISTRADOR)
+@require_POST
+def eliminar_producto(request, id):
+    # 7B: "eliminar" = marcar como inactivo (no se borra de la base de datos)
+    producto = get_object_or_404(Producto, id=id, activo=True)
+    producto.activo = False
+    producto.save(update_fields=['activo'])
+
+    messages.success(request, f'Producto "{producto.nombre}" eliminado correctamente.')
+    return redirect('lista_productos')
