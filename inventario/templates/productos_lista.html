@@ -60,7 +60,15 @@
                                    class="inline-flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium px-3 py-1.5 rounded-lg transition">
                                     Editar
                                 </a>
-                                {# HU7 (Gabriela): aquí va el botón "Eliminar" (con confirmación Sí/No) #}
+                                {# HU7: botón "Eliminar" con confirmación #}
+                                <form action="{% url 'eliminar_producto' p.id %}" method="post" class="inline"
+                                        onsubmit="return confirm('¿Seguro que quieres eliminar el producto {{ p.nombre|escapejs }}?');">
+                                   {% csrf_token %}
+                                    <button type="submit"
+                                        class="inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 font-medium px-3 py-1.5 rounded-lg transition">
+                                        Eliminar
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                     {% empty %}
