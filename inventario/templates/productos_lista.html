@@ -55,11 +55,11 @@
                         <tr class="border-t">
                             <td class="px-4 py-3 font-medium text-gray-800">{{ p.nombre }}</td>
                             <td class="px-4 py-3">{{ p.categoria }}</td>
-                            <td class="px-4 py-3">${{ p.precio }}</td>
+                            <td class="px-4 py-3">${{ p.precio|floatformat:"-2g" }}</td>
                             <td class="px-4 py-3">
                                 {% if p.categoria.es_peso_variable %}por {{ p.get_unidad_base_display|lower }}{% else %}por unidad{% endif %}
                             </td>
-                            <td class="px-4 py-3">{{ p.stock_minimo }}</td>
+                            <td class="px-4 py-3">{{ p.stock_minimo|floatformat:"-3" }}</td>
                             <td class="px-4 py-3">
                                 {# HU6 (Laura): aquí va el botón/enlace "Editar" #}
                                 <a href="{% url 'editar_producto' p.id %}"

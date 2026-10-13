@@ -2,6 +2,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -186,3 +187,30 @@ def eliminar_producto(request, id):
 
     messages.success(request, f'Producto "{producto.nombre}" eliminado correctamente.')
     return redirect('lista_productos')
+
+
+# HU9: consultar inventario
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def consultar_inventario(request):
+    # 9A: todos los productos activos con su cantidad disponible
+    productos = Producto.objects.filter(activo=True).select_related('categoria')
+    # HU10: cuántos están por debajo de su mínimo (para el aviso de arriba)
+    cantidad_alertas = productos.filter(stock__lt=F('stock_minimo')).count()
+    return render(request, 'inventario_lista.html', {
+        'productos': productos,
+        'cantidad_alertas': cantidad_alertas,
+    })
+
+
+# HU10: alertas de stock bajo
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def alertas_stock(request):
+    # 10A: productos cuyo stock está por debajo del mínimo definido.
+    # 10C: la lista se calcula cada vez que se abre, así que al reabastecer (HU11)
+    # el producto desaparece solo.
+    productos = Producto.objects.filter(
+        activo=True, stock__lt=F('stock_minimo')
+    ).select_related('categoria')
+    return render(request, 'alertas_stock.html', {'productos': productos})
