@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import formats
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import rol_requerido
@@ -197,9 +198,11 @@ def consultar_inventario(request):
     productos = Producto.objects.filter(activo=True).select_related('categoria')
     # HU10: cuántos están por debajo de su mínimo (para el aviso de arriba)
     cantidad_alertas = productos.filter(stock__lt=F('stock_minimo')).count()
+    stock_normal = productos.count() - cantidad_alertas
     return render(request, 'inventario_lista.html', {
         'productos': productos,
         'cantidad_alertas': cantidad_alertas,
+        'stock_normal': stock_normal,
     })
 
 
@@ -214,3 +217,49 @@ def alertas_stock(request):
         activo=True, stock__lt=F('stock_minimo')
     ).select_related('categoria')
     return render(request, 'alertas_stock.html', {'productos': productos})
+
+
+# HU11: registrar ingreso de nuevas unidades
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def ingresar_unidades(request, id):
+    producto = get_object_or_404(Producto, id=id, activo=True)
+    es_peso = producto.categoria.es_peso_variable
+    errors = []
+    datos = {}
+
+    if request.method == 'POST':
+        # Si algo sale mal, el formulario conserva lo que el usuario escribió
+        datos = request.POST
+
+        cantidad = a_decimal(request.POST.get('cantidad', '').strip(), 10 ** 7)
+
+        # 11B: la cantidad tiene que ser un número mayor que 0
+        if cantidad is None or cantidad <= 0:
+            errors.append('La cantidad debe ser un número mayor que 0.')
+        elif cantidad.as_tuple().exponent < -3:
+            errors.append('La cantidad puede tener máximo 3 decimales.')
+        # 5E: los productos por unidad no se cuentan en fracciones
+        elif not es_peso and cantidad != cantidad.to_integral_value():
+            errors.append('Este producto se maneja por unidades: ingresa un número entero.')
+        elif producto.stock + cantidad >= 10 ** 7:
+            errors.append('Con esa cantidad el stock superaría el máximo permitido.')
+
+        # 11A: si todo está bien, la cantidad se suma al stock actual.
+        # 10C: como las alertas se calculan al abrirlas, el producto sale solo si ya supera el mínimo.
+        if not errors:
+            producto.stock += cantidad
+            producto.save(update_fields=['stock'])
+
+            messages.success(
+                request,
+                f'Ingreso registrado: {formats.localize(cantidad.normalize())} para "{producto.nombre}". '
+                f'Stock actual: {formats.localize(producto.stock.normalize())}.'
+            )
+            return redirect('consultar_inventario')
+
+    return render(request, 'ingresar_unidades.html', {
+        'producto': producto,
+        'errors': errors,
+        'datos': datos,
+    })

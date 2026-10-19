@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -6,64 +7,215 @@
     <title>Inventario - Sistema de Ventas</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50">
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 antialiased">
 
-    <header class="bg-gray-800 text-white py-6 shadow-md">
-        <div class="container mx-auto px-4">
-            <h1 class="text-xl md:text-2xl font-semibold tracking-wide text-center">Inventario</h1>
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-5 flex items-center justify-center gap-4">
+            <div class="bg-white/10 rounded-xl p-2 shadow-inner backdrop-blur-sm">
+                <img src="{% static 'inventario/img/icono.png' %}" alt="Icono inventario" class="w-10 h-10 md:w-12 md:h-12 rounded-lg object-contain">
+            </div>
+            <h1 class="text-xl md:text-2xl lg:text-3xl font-semibold tracking-wide">
+                Sistema de Gestión de Ventas e Inventario
+            </h1>
         </div>
     </header>
 
-    <main class="container mx-auto px-4 py-8 max-w-4xl">
+    <!-- Main -->
+    <main class="flex-1 container mx-auto px-4 py-8 max-w-5xl">
 
-        <div class="flex justify-between items-center mb-4">
-            <a href="{% url 'home' %}" class="text-sm text-indigo-600 hover:underline">Volver al inicio</a>
-            {# HU10: aviso con la cantidad de productos por debajo del mínimo #}
-            <a href="{% url 'alertas_stock' %}"
-               class="text-sm font-medium px-4 py-2 rounded-lg transition {% if cantidad_alertas %}bg-red-50 hover:bg-red-100 text-red-600{% else %}bg-gray-100 hover:bg-gray-200 text-gray-600{% endif %}">
-                Alertas de stock bajo ({{ cantidad_alertas }})
-            </a>
+
+        {# HU11: mensaje cuando se registra un ingreso #}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-4 rounded-lg text-sm px-4 py-3 {% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-700{% else %}bg-red-50 border border-red-200 text-red-700{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Encabezado de sección -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="flex-shrink-0 w-11 h-11 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                    </svg>
+                </span>
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">Inventario</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Consulta las existencias de tus productos</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <a href="{% url 'home' %}"
+                   class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Volver
+                </a>
+
+                <!-- Botón de alertas: cambia de color según cantidad -->
+                <a href="{% url 'alertas_stock' %}"
+                   class="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all
+                        {% if cantidad_alertas %}
+                            bg-red-500 hover:bg-red-600 active:bg-red-700 text-white
+                        {% else %}
+                            bg-slate-100 hover:bg-slate-200 text-slate-600
+                        {% endif %}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.2 16a2 2 0 001.73 3z"/>
+                    </svg>
+                    Alertas de stock
+                    <span class="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full text-xs font-bold
+                        {% if cantidad_alertas %}
+                            bg-white text-red-600
+                        {% else %}
+                            bg-slate-200 text-slate-600
+                        {% endif %}">
+                        {{ cantidad_alertas }}
+                    </span>
+                </a>
+            </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead class="bg-gray-100 text-gray-600">
-                    <tr>
-                        <th class="px-4 py-3">Producto</th>
-                        <th class="px-4 py-3">Categoría</th>
-                        <th class="px-4 py-3">Disponible</th>
-                        <th class="px-4 py-3">Stock mínimo</th>
-                        <th class="px-4 py-3">Estado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {# HU9: cada fila muestra el producto y su cantidad disponible #}
-                    {% for p in productos %}
-                        <tr class="border-t">
-                            <td class="px-4 py-3 font-medium text-gray-800">{{ p.nombre }}</td>
-                            <td class="px-4 py-3">{{ p.categoria }}</td>
-                            <td class="px-4 py-3">
-                                {{ p.stock|floatformat:"-3" }}
-                                {% if p.categoria.es_peso_variable %}{% if p.unidad_base == 'KILO' %}kg{% else %}g{% endif %}{% else %}und{% endif %}
-                            </td>
-                            <td class="px-4 py-3">{{ p.stock_minimo|floatformat:"-3" }}</td>
-                            <td class="px-4 py-3">
-                                {% if p.stock < p.stock_minimo %}
-                                    <span class="inline-block bg-red-50 text-red-600 font-medium px-2.5 py-1 rounded-full text-xs">Stock bajo</span>
-                                {% else %}
-                                    <span class="inline-block bg-green-50 text-green-700 font-medium px-2.5 py-1 rounded-full text-xs">Normal</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% empty %}
+        <!-- Resumen rápido (opcional y útil) -->
+        {% if productos %}
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                <div class="bg-white rounded-xl ring-1 ring-slate-200 p-4 flex items-center gap-3">
+                    <span class="flex-shrink-0 w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Productos</p>
+                        <p class="text-lg font-bold text-slate-800">{{ productos|length }}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl ring-1 ring-slate-200 p-4 flex items-center gap-3">
+                    <span class="flex-shrink-0 w-10 h-10 rounded-lg bg-green-100 text-green-600 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Stock normal</p>
+                        <p class="text-lg font-bold text-green-600">{{ productos|length|add:"-"|add:cantidad_alertas }}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl ring-1 ring-slate-200 p-4 flex items-center gap-3">
+                    <span class="flex-shrink-0 w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.2 16a2 2 0 001.73 3z"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Stock bajo</p>
+                        <p class="text-lg font-bold text-red-600">{{ cantidad_alertas }}</p>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Card con tabla -->
+        <div class="bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider">
                         <tr>
-                            <td colspan="5" class="px-4 py-6 text-center text-gray-500">Todavía no hay productos registrados.</td>
+                            <th class="px-5 py-4 font-semibold">Producto</th>
+                            <th class="px-5 py-4 font-semibold">Categoría</th>
+                            <th class="px-5 py-4 font-semibold">Disponible</th>
+                            <th class="px-5 py-4 font-semibold">Stock mínimo</th>
+                            <th class="px-5 py-4 font-semibold text-right">Estado</th>
+                            <th class="px-5 py-4 font-semibold">Acciones</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for p in productos %}
+                            <tr class="hover:bg-slate-50/70 transition-colors">
+                                <td class="px-5 py-3.5">
+                                    <p class="font-semibold text-slate-800">{{ p.nombre }}</p>
+                                </td>
+                                <td class="px-5 py-3.5 text-slate-600">
+                                    {{ p.categoria }}
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <span class="font-semibold text-slate-800">
+                                        {{ p.stock|floatformat:"-3" }}
+                                        {% if p.categoria.es_peso_variable %}
+                                            {% if p.unidad_base == 'KILO' %}kg{% else %}g{% endif %}
+                                        {% else %}
+                                            und
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3.5 text-slate-600">
+                                    {{ p.stock_minimo|floatformat:"-3" }}
+                                </td>
+                                <td class="px-5 py-3.5 text-right">
+                                    {% if p.stock < p.stock_minimo %}
+                                        <span class="inline-flex items-center gap-1.5 bg-red-50 text-red-700 font-semibold text-xs px-2.5 py-1 rounded-full ring-1 ring-red-200">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                            Stock bajo
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center gap-1.5 bg-green-50 text-green-700 font-semibold text-xs px-2.5 py-1 rounded-full ring-1 ring-green-200">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                            Normal
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    {# HU11: registrar ingreso de nuevas unidades #}
+                                    <a href="{% url 'ingresar_unidades' p.id %}"
+                                       class="inline-flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium px-3 py-1.5 rounded-lg transition">
+                                        Ingresar
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="px-5 py-16 text-center">
+                                    <div class="flex flex-col items-center gap-3">
+                                        <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold text-slate-700">Todavía no hay productos registrados</p>
+                                            <p class="text-sm text-slate-500 mt-1">Comienza registrando tu primer producto para verlo aquí.</p>
+                                        </div>
+                                        <a href="{% url 'registrar_producto' %}"
+                                           class="mt-2 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                            </svg>
+                                            Registrar producto
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
+
     </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-center py-4 text-sm border-t border-slate-800 mt-8">
+        <div class="container mx-auto px-4">
+            <p class="tracking-wide">Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
 
 </body>
 </html>
