@@ -121,6 +121,26 @@
                     </div>
                 {% endif %}
 
+                <!-- Acciones vendedor -->
+                {% if es_vendedor %}
+                    <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+
+                        <a href="{% url 'nueva_venta' %}"
+                           class="group flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all">
+                            <span class="flex-shrink-0 w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.6.6-.2 1.7.7 1.7H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                            </span>
+                            <div>
+                                <p class="font-semibold text-slate-800">Nueva venta</p>
+                                <p class="text-xs text-slate-500">Registrar una venta</p>
+                            </div>
+                        </a>
+
+                    </div>
+                {% endif %}                
+                
                 <!-- Logout -->
                 <form method="post" action="{% url 'logout' %}" class="mt-8 pt-6 border-t border-slate-100">
                     {% csrf_token %}

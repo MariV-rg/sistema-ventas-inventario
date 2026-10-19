@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'inventario',
     'accounts',
+    'ventas',
 ]
 
 MIDDLEWARE = [
@@ -132,3 +133,4 @@ MAILERS = {
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
+
