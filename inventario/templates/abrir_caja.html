@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abrir Caja</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <style>
+        body {
+            background: #f8fafc;
+        }
+
+        .form-card {
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .form-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        input, select {
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        input:focus, select:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            outline: none;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4 md:p-8 font-sans antialiased">
+
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-xl p-6 md:p-10 border border-slate-200">
+
+        <div class="form-card bg-white rounded-2xl p-6 md:p-8 border border-slate-100 shadow-sm">
+
+            <h1 class="text-2xl font-bold text-slate-800 mb-1">Abrir caja</h1>
+            <p class="text-sm text-slate-500 mb-6">
+                Registre el monto con el que empieza su turno.
+            </p>
+
+            {# Mensajes del sistema (12B, 12D y confirmaciones) #}
+            {% for mensaje in messages %}
+                <div class="mb-4 p-3 rounded-xl bg-slate-100 text-slate-700 text-sm">
+                    {{ mensaje }}
+                </div>
+            {% endfor %}
+
+            <form method="POST" novalidate class="space-y-6">
+
+                {% csrf_token %}
+
+                <!-- MONTO INICIAL -->
+                <div class="space-y-2">
+
+                    <label for="{{ form.monto_inicial.id_for_label }}"
+                           class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+
+                        <i class="fas fa-cash-register text-indigo-400 text-xs"></i>
+
+                        {{ form.monto_inicial.label }}
+
+                    </label>
+
+                    {{ form.monto_inicial }}
+
+                    {# 12C: mensaje cuando el monto viene vacío o inválido #}
+                    {% for error in form.monto_inicial.errors %}
+                        <p class="text-sm text-red-600">{{ error }}</p>
+                    {% endfor %}
+
+                </div>
+
+                <button type="submit"
+                        class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition">
+                    Abrir caja
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

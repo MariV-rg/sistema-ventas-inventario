@@ -1,5 +1,5 @@
 from django import forms
-from .models import Producto
+from .models import Caja, Producto
 
 INPUT = 'w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400'
 
@@ -47,3 +47,33 @@ class ProductoForm(forms.ModelForm):
         if repetidos.exists():
             raise forms.ValidationError('Ya existe un producto con ese nombre.')
         return nombre
+
+
+class CajaForm(forms.ModelForm):
+    '''
+    Formulario de apertura de caja (HU12). Solo pide el monto inicial;
+    el vendedor y la fecha se asignan en la vista.
+    '''
+
+    class Meta:
+        model = Caja
+        fields = ['monto_inicial']
+        widgets = {
+            'monto_inicial': forms.NumberInput(attrs={
+                'class': INPUT,
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Ej: 50000',
+            }),
+        }
+        labels = {
+            'monto_inicial': 'Monto inicial',
+        }
+        error_messages = {
+            'monto_inicial': {
+                # 12C: no se ingresó un monto
+                'required': 'Debe ingresar el monto inicial para abrir la caja.',
+                'invalid': 'Ingrese un monto válido.',
+                'min_value': 'El monto inicial no puede ser negativo.',
+            }
+        }

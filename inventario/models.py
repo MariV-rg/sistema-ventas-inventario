@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -60,3 +61,40 @@ class Producto(models.Model):
 
     def __str__(self):
         return self.nombre
+
+class Caja(models.Model):
+    '''
+    Caja del vendedor (HU12). Al abrirla se guarda el monto inicial del turno,
+    que sirve de base de comparación al cerrar.
+    '''
+    ESTADO_ABIERTA = 'ABIERTA'
+    ESTADO_CERRADA = 'CERRADA'
+    ESTADO_CHOICES = [
+        (ESTADO_ABIERTA, 'Abierta'),
+        (ESTADO_CERRADA, 'Cerrada'),
+    ]
+
+    vendedor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='cajas',
+    )
+    monto_inicial = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        verbose_name='Monto inicial',
+    )
+    fecha_apertura = models.DateTimeField(auto_now_add=True)
+    fecha_cierre = models.DateTimeField(null=True, blank=True)
+    estado = models.CharField(
+        max_length=10,
+        choices=ESTADO_CHOICES,
+        default=ESTADO_ABIERTA,
+    )
+
+    class Meta:
+        ordering = ['-fecha_apertura']
+
+    def __str__(self):
+        return f'Caja de {self.vendedor} ({self.get_estado_display()})'

@@ -1,4 +1,5 @@
 from decimal import Decimal, InvalidOperation
+from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -7,7 +8,9 @@ from django.views.decorators.http import require_POST
 
 from accounts.decorators import rol_requerido
 from accounts.models import Rol
-from .models import Categoria, Producto
+from inventario.forms import CajaForm
+from .models import Caja, Categoria, Producto
+from .forms import CajaForm
 
 
 def a_decimal(texto, limite):
@@ -186,3 +189,56 @@ def eliminar_producto(request, id):
 
     messages.success(request, f'Producto "{producto.nombre}" eliminado correctamente.')
     return redirect('lista_productos')
+
+
+def caja_abierta_del_vendedor(usuario):
+    '''
+    Devuelve la caja abierta del vendedor, o None si no tiene ninguna.
+    '''
+    return Caja.objects.filter(
+        vendedor=usuario,
+        estado=Caja.ESTADO_ABIERTA,
+    ).first()
+
+
+def caja_abierta_requerida(vista):
+    '''
+    HU12 (12D): bloquea una vista si el vendedor no tiene la caja abierta.
+    Se usa en la vista de registrar venta.
+    '''
+    @wraps(vista)
+    def envoltura(request, *args, **kwargs):
+        if caja_abierta_del_vendedor(request.user) is None:
+            messages.error(
+                request,
+                'No puede registrar ventas: primero debe abrir la caja.',
+            )
+            return redirect('abrir_caja')
+        return vista(request, *args, **kwargs)
+    return envoltura
+
+
+@rol_requerido(Rol.VENDEDOR)
+def abrir_caja(request):
+    '''
+    HU12: el vendedor abre la caja registrando el monto inicial del turno.
+    '''
+    # 12B: ya hay una caja abierta
+    if caja_abierta_del_vendedor(request.user):
+        messages.warning(request, 'Ya hay una caja abierta.')
+        return redirect('home')
+
+    if request.method == 'POST':
+        form = CajaForm(request.POST)
+        # 12C: si el monto viene vacío, el formulario no es válido
+        if form.is_valid():
+            # 12A: se guarda el monto como base de apertura del día
+            caja = form.save(commit=False)
+            caja.vendedor = request.user
+            caja.save()
+            messages.success(request, 'Caja abierta correctamente.')
+            return redirect('home')
+    else:
+        form = CajaForm()
+
+    return render(request, 'abrir_caja.html', {'form': form})
