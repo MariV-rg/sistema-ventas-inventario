@@ -1,7 +1,8 @@
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from functools import wraps
 
 from django.contrib import messages
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.shortcuts import redirect, render
 from django.utils import formats
@@ -9,8 +10,8 @@ from django.views.decorators.http import require_POST
 
 from accounts.decorators import rol_requerido
 from accounts.models import Rol
-from inventario.models import Producto
-from .models import DetalleVenta, Venta
+from inventario.models import Categoria, Producto
+from .models import Caja, DetalleVenta, Venta
 
 
 # ---------------------------------------------------------------
@@ -22,6 +23,25 @@ def unidad_corta(producto):
     if producto.categoria.es_peso_variable:
         return 'kg' if producto.unidad_base == Producto.UNIDAD_KILO else 'g'
     return 'und'
+
+
+def caja_abierta(usuario):
+    '''La caja que tiene abierta este usuario, o None si no tiene ninguna.'''
+    return Caja.objects.filter(vendedor=usuario, abierta=True).select_related('vendedor').first()
+
+
+def caja_requerida(vista):
+    '''
+    12D: si el vendedor no tiene su caja abierta, no puede vender. Lo manda a abrirla.
+    Se pone debajo de @rol_requerido en las vistas de venta.
+    '''
+    @wraps(vista)
+    def envoltura(request, *args, **kwargs):
+        if caja_abierta(request.user) is None:
+            messages.error(request, 'Primero debes abrir tu caja para registrar ventas.')
+            return redirect('abrir_caja')
+        return vista(request, *args, **kwargs)
+    return envoltura
 
 
 def leer_carrito(request):
@@ -111,28 +131,95 @@ def validar_cantidad(producto, texto, unidad, ya_en_la_venta=Decimal('0')):
 
 
 # ---------------------------------------------------------------
+# HU12: apertura de caja
+# ---------------------------------------------------------------
+
+@rol_requerido(Rol.VENDEDOR)
+def abrir_caja(request):
+    caja = caja_abierta(request.user)                  # la caja de este vendedor
+    # las cajas abiertas de los demás vendedores (para saber quién la tiene abierta)
+    otras_cajas = Caja.objects.filter(abierta=True).exclude(vendedor=request.user).select_related('vendedor')
+    errors = []
+    datos = {}
+
+    if request.method == 'POST':
+        datos = request.POST
+
+        # 12B: si ya tiene su caja abierta, no se puede abrir otra
+        if caja is not None:
+            messages.error(request, 'Ya tienes una caja abierta.')
+            return redirect('abrir_caja')
+
+        # 12C: el monto inicial es obligatorio
+        texto = request.POST.get('monto_inicial', '').strip()
+        if not texto:
+            errors.append('El monto inicial es obligatorio.')
+        else:
+            try:
+                monto = Decimal(texto)
+            except InvalidOperation:
+                monto = None
+            if monto is None or not monto.is_finite():
+                errors.append('El monto inicial debe ser un número.')
+            elif monto < 0:
+                errors.append('El monto inicial no puede ser negativo.')
+            elif monto.as_tuple().exponent < -2:
+                errors.append('El monto inicial puede tener máximo 2 decimales.')
+            elif monto >= 10 ** 10:
+                errors.append('El monto inicial es demasiado grande.')
+
+        # 12A: si todo está bien, el monto queda como base de apertura de su caja
+        if not errors:
+            try:
+                with transaction.atomic():
+                    Caja.objects.create(vendedor=request.user, monto_inicial=monto)
+            except IntegrityError:
+                # por ejemplo, si pulsó el botón dos veces: la primera ya la abrió
+                messages.error(request, 'Ya tienes una caja abierta.')
+                return redirect('abrir_caja')
+            messages.success(request, 'Caja abierta. Ya puedes registrar ventas.')
+            return redirect('nueva_venta')
+
+    return render(request, 'abrir_caja.html', {
+        'caja': caja,
+        'otras_cajas': otras_cajas,
+        'errors': errors,
+        'datos': datos,
+    })
+
+
+# ---------------------------------------------------------------
 # HU14: registrar venta
 # ---------------------------------------------------------------
 
 @rol_requerido(Rol.VENDEDOR)
+@caja_requerida
 def nueva_venta(request):
-    # HU12 (12D): aquí se exigirá que haya una caja abierta antes de poder vender.
     lineas, total = armar_resumen(leer_carrito(request))
 
-    # HU13: aquí se mostrarán los productos disponibles (los que tienen existencias).
-    productos = list(Producto.objects.filter(activo=True, stock__gt=0).select_related('categoria'))
-    for producto in productos:
-        producto.unidad = unidad_corta(producto)
+    # HU13: productos que el vendedor puede ver al vender, agrupados por categoría.
+    # Salen todos los productos activos: los que no tienen existencias se muestran
+    # como "No disponible" (13B).
+    grupos = []
+    for categoria in Categoria.objects.all():
+        productos = list(Producto.objects.filter(activo=True, categoria=categoria))
+        if productos:
+            for producto in productos:
+                producto.categoria = categoria
+                producto.unidad = unidad_corta(producto)
+            grupos.append({'categoria': categoria, 'productos': productos})
 
     return render(request, 'nueva_venta.html', {
-        'productos': productos,
+        'grupos': grupos,
         'lineas': lineas,
         'total': total,
         'metodos_pago': Venta.METODO_PAGO_CHOICES,
+        'caja': caja_abierta(request.user),
     })
 
 
 @rol_requerido(Rol.VENDEDOR)
+@caja_requerida
 @require_POST
 def agregar_al_carrito(request):
     # 14A: el vendedor elige un producto y una cantidad
@@ -163,6 +250,7 @@ def agregar_al_carrito(request):
 
 
 @rol_requerido(Rol.VENDEDOR)
+@caja_requerida
 @require_POST
 def actualizar_carrito(request, producto_id):
     # 14C: al cambiar una cantidad, el total se recalcula (se calcula al mostrar la página)
@@ -185,6 +273,7 @@ def actualizar_carrito(request, producto_id):
 
 
 @rol_requerido(Rol.VENDEDOR)
+@caja_requerida
 @require_POST
 def quitar_del_carrito(request, producto_id):
     carrito = leer_carrito(request)
@@ -194,6 +283,7 @@ def quitar_del_carrito(request, producto_id):
 
 
 @rol_requerido(Rol.VENDEDOR)
+@caja_requerida
 @require_POST
 def confirmar_venta(request):
     carrito = leer_carrito(request)
@@ -229,7 +319,13 @@ def confirmar_venta(request):
                 messages.error(request, error)
             return redirect('nueva_venta')
 
-        venta = Venta.objects.create(vendedor=request.user, metodo_pago=metodo_pago)
+        # 12D: su caja tiene que seguir abierta al guardar (pudo cerrarse mientras armaba la venta)
+        caja = Caja.objects.select_for_update().filter(vendedor=request.user, abierta=True).first()
+        if caja is None:
+            messages.error(request, 'Primero debes abrir tu caja para registrar ventas.')
+            return redirect('abrir_caja')
+
+        venta = Venta.objects.create(vendedor=request.user, metodo_pago=metodo_pago, caja=caja)
         total = Decimal('0')
         for producto_id, texto in carrito.items():
             producto = productos[int(producto_id)]
