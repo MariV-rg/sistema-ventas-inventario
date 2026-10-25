@@ -1,6 +1,8 @@
+from decimal import Decimal
+
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import Q, UniqueConstraint
+from django.db.models import Q, Sum, UniqueConstraint
 
 from inventario.models import Producto
 
@@ -26,6 +28,20 @@ class Caja(models.Model):
             UniqueConstraint(fields=['vendedor'], condition=Q(abierta=True),
                              name='una_caja_abierta_por_vendedor'),
         ]
+
+    def ventas_en_efectivo(self):
+        '''14K: lo vendido en efectivo en esta caja (esto sí entra a la caja).'''
+        total = self.ventas.filter(metodo_pago=Venta.EFECTIVO).aggregate(total=Sum('total'))['total']
+        return total or Decimal('0')
+
+    def ventas_por_otros_medios(self):
+        '''14J: lo vendido por Nequi, Daviplata, Bancolombia u otro (no entra a la caja).'''
+        total = self.ventas.exclude(metodo_pago=Venta.EFECTIVO).aggregate(total=Sum('total'))['total']
+        return total or Decimal('0')
+
+    def efectivo_esperado(self):
+        '''Lo que debería haber en la caja: monto inicial + ventas en efectivo (la HU18 lo compara al cerrar).'''
+        return self.monto_inicial + self.ventas_en_efectivo()
 
     def __str__(self):
         return f'Caja #{self.id}'

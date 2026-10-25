@@ -49,7 +49,8 @@ def validar_producto(post, excluir_id=None):
         errors.append('El nombre no puede tener más de 100 caracteres.')
     else:
         # 5C: no repetir productos (sin importar mayúsculas, tampoco en letras con tilde)
-        otros = Producto.objects.exclude(id=excluir_id).values_list('nombre', flat=True)
+        # solo se comparan los productos activos: el nombre de uno eliminado queda libre
+        otros = Producto.objects.filter(activo=True).exclude(id=excluir_id).values_list('nombre', flat=True)
         if nombre.casefold() in [otro.casefold() for otro in otros]:
             errors.append('Ya existe un producto con ese nombre.')
 
