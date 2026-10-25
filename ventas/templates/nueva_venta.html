@@ -141,7 +141,7 @@
                                     </div>
 
                                     {% if p.stock > 0 %}
-                                        <form method="post" action="{% url 'agregar_al_carrito' %}" class="flex items-center gap-2">
+                                        <form method="post" action="{% url 'agregar_al_carrito' %}" class="flex flex-wrap items-center gap-2 sm:justify-end">
                                             {% csrf_token %}
                                             <input type="hidden" name="producto" value="{{ p.id }}">
                                             <input type="number" name="cantidad" step="any" required placeholder="Cantidad"
@@ -158,6 +158,25 @@
                                                     class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm transition-all">
                                                 Agregar
                                             </button>
+
+                                            {# 14H: accesos rápidos de peso (agregan esa cantidad con un solo clic) #}
+                                            {% if p.categoria.es_peso_variable %}
+                                                <div class="w-full flex items-center gap-1.5 sm:justify-end">
+                                                    <span class="text-xs text-slate-400">Rápido:</span>
+                                                    <button type="submit" name="atajo" value="250g" formnovalidate
+                                                            class="text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 ring-1 ring-indigo-200 rounded-full px-2.5 py-1 transition-colors">
+                                                        250 g
+                                                    </button>
+                                                    <button type="submit" name="atajo" value="500g" formnovalidate
+                                                            class="text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 ring-1 ring-indigo-200 rounded-full px-2.5 py-1 transition-colors">
+                                                        500 g
+                                                    </button>
+                                                    <button type="submit" name="atajo" value="1kg" formnovalidate
+                                                            class="text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 ring-1 ring-indigo-200 rounded-full px-2.5 py-1 transition-colors">
+                                                        1 kg
+                                                    </button>
+                                                </div>
+                                            {% endif %}
                                         </form>
                                     {% else %}
                                         {# 13B: producto sin existencias #}

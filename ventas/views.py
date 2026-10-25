@@ -236,9 +236,17 @@ def agregar_al_carrito(request):
     carrito = leer_carrito(request)
     ya_en_la_venta = Decimal(carrito.get(str(producto.id), '0'))
 
-    errors, cantidad = validar_cantidad(
-        producto, request.POST.get('cantidad', ''), request.POST.get('unidad', ''), ya_en_la_venta
-    )
+    cantidad_texto = request.POST.get('cantidad', '')
+    unidad = request.POST.get('unidad', '')
+
+    # 14H: accesos rápidos de peso (250 g, 500 g, 1 kg). Solo aplican a productos por peso
+    # y no impiden escribir cualquier otro peso a mano.
+    atajos = {'250g': ('250', 'g'), '500g': ('500', 'g'), '1kg': ('1', 'kg')}
+    atajo = request.POST.get('atajo', '')
+    if producto.categoria.es_peso_variable and atajo in atajos:
+        cantidad_texto, unidad = atajos[atajo]
+
+    errors, cantidad = validar_cantidad(producto, cantidad_texto, unidad, ya_en_la_venta)
     if errors:
         for error in errors:
             messages.error(request, error)

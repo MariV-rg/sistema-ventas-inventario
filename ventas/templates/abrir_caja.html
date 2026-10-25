@@ -95,7 +95,21 @@
                         </div>
                         <div class="flex justify-between">
                             <dt class="text-slate-500">Monto inicial</dt>
-                            <dd class="font-bold text-indigo-600">${{ caja.monto_inicial|floatformat:"-2g" }}</dd>
+                            <dd class="font-medium text-slate-800">${{ caja.monto_inicial|floatformat:"-2g" }}</dd>
+                        </div>
+                        {# 14K: las ventas en efectivo entran a la caja #}
+                        <div class="flex justify-between">
+                            <dt class="text-slate-500">Ventas en efectivo</dt>
+                            <dd class="font-medium text-slate-800">${{ caja.ventas_en_efectivo|floatformat:"-2g" }}</dd>
+                        </div>
+                        {# 14J: las ventas por transferencia no entran al efectivo de la caja #}
+                        <div class="flex justify-between">
+                            <dt class="text-slate-500">Ventas por Nequi, Daviplata u otros</dt>
+                            <dd class="font-medium text-slate-400">${{ caja.ventas_por_otros_medios|floatformat:"-2g" }}</dd>
+                        </div>
+                        <div class="flex justify-between border-t border-slate-200 pt-2">
+                            <dt class="font-semibold text-slate-700">Efectivo esperado en caja</dt>
+                            <dd class="font-bold text-indigo-600">${{ caja.efectivo_esperado|floatformat:"-2g" }}</dd>
                         </div>
                     </dl>
 
