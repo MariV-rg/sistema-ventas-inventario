@@ -78,6 +78,10 @@
                         <dd class="font-medium text-slate-800">${{ caja.ventas_en_efectivo|floatformat:"-2g" }}</dd>
                     </div>
                     <div class="flex justify-between">
+                        <dt class="text-slate-500">Devoluciones en efectivo</dt>
+                        <dd class="font-medium text-red-600">-${{ caja.devoluciones_en_efectivo|floatformat:"-2g" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
                         <dt class="text-slate-500">Ventas por Nequi, Daviplata u otros</dt>
                         <dd class="font-medium text-slate-400">${{ caja.ventas_por_otros_medios|floatformat:"-2g" }}</dd>
                     </div>

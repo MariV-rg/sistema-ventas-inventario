@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 from accounts.decorators import rol_requerido
 from accounts.models import Rol
 from inventario.models import Categoria, Producto
-from .models import Caja, DetalleVenta, Venta
+from .models import Caja, DetalleVenta, Devolucion, Venta
 
 
 # ---------------------------------------------------------------
@@ -300,6 +300,24 @@ def quitar_del_carrito(request, producto_id):
     return redirect('nueva_venta')
 
 
+# ---------------------------------------------------------------
+# HU16: cancelar venta en proceso
+# ---------------------------------------------------------------
+
+@rol_requerido(Rol.VENDEDOR)
+@caja_requerida
+@require_POST
+def cancelar_venta(request):
+    # 16A: la venta en proceso solo existe en la sesión del vendedor (todavía no se guardó ni
+    # se descontó nada del inventario), así que cancelar es simplemente descartarla.
+    if leer_carrito(request):
+        request.session.pop('carrito', None)
+        messages.success(request, 'Venta cancelada. No se descontó nada del inventario.')
+    else:
+        messages.error(request, 'No hay ninguna venta en proceso para cancelar.')
+    return redirect('nueva_venta')
+
+
 @rol_requerido(Rol.VENDEDOR)
 @caja_requerida
 def revisar_venta(request):
@@ -445,3 +463,132 @@ def resultado_cierre(request, caja_id):
     # 18B: muestra lo esperado, lo contado y el descuadre (solo el dueño de la caja)
     caja = get_object_or_404(Caja, id=caja_id, vendedor=request.user, abierta=False)
     return render(request, 'resultado_cierre.html', {'caja': caja})
+
+
+# ---------------------------------------------------------------
+# HU17: devoluciones
+# ---------------------------------------------------------------
+
+@rol_requerido(Rol.VENDEDOR)
+@caja_requerida
+def devoluciones(request):
+    # lista de ventas confirmadas, para elegir de cuál se devuelve un producto
+    ventas = Venta.objects.select_related('vendedor').prefetch_related('detalles__producto')
+    busqueda = request.GET.get('q', '').strip().lstrip('#')
+    if busqueda:
+        ventas = ventas.filter(id=busqueda) if busqueda.isdigit() else ventas.none()
+    return render(request, 'devoluciones_lista.html', {
+        'ventas': ventas[:50],
+        'busqueda': request.GET.get('q', ''),
+        'caja': caja_abierta(request.user),
+    })
+
+
+def lineas_de_devolucion(venta):
+    '''Las líneas de la venta con lo vendido, lo ya devuelto y lo que todavía se puede devolver.'''
+    lineas = []
+    for detalle in venta.detalles.select_related('producto__categoria'):
+        lineas.append({
+            'detalle': detalle,
+            'unidad': unidad_corta(detalle.producto),
+            'es_peso': detalle.producto.categoria.es_peso_variable,
+            'devuelta': detalle.cantidad_devuelta(),
+            'disponible': detalle.cantidad_disponible(),
+        })
+    return lineas
+
+
+@rol_requerido(Rol.VENDEDOR)
+@caja_requerida
+def devolver_venta(request, venta_id):
+    venta = get_object_or_404(Venta.objects.select_related('vendedor'), id=venta_id)
+    return render(request, 'devolver_venta.html', {
+        'venta': venta,
+        'lineas': lineas_de_devolucion(venta),
+        'total_devuelto': venta.total_devuelto(),
+        'total_neto': venta.total_neto(),
+        'caja': caja_abierta(request.user),
+    })
+
+
+@rol_requerido(Rol.VENDEDOR)
+@caja_requerida
+@require_POST
+def registrar_devolucion(request, venta_id):
+    venta = get_object_or_404(Venta, id=venta_id)
+    detalle_id = request.POST.get('detalle', '')
+    if not detalle_id.isdigit():
+        messages.error(request, 'Selecciona el producto que se devuelve.')
+        return redirect('devolver_venta', venta_id=venta.id)
+
+    with transaction.atomic():
+        # se bloquea la línea mientras se guarda, para que dos devoluciones al mismo tiempo
+        # no devuelvan más de lo vendido
+        detalle = (DetalleVenta.objects.select_for_update()
+                   .select_related('producto__categoria')
+                   .filter(id=detalle_id, venta=venta).first())
+        if detalle is None:
+            messages.error(request, 'Ese producto no pertenece a esta venta.')
+            return redirect('devolver_venta', venta_id=venta.id)
+
+        producto = detalle.producto
+        disponible = detalle.cantidad_disponible()
+        unidad = request.POST.get('unidad', '')
+
+        # --- validar la cantidad que se devuelve ---
+        try:
+            cantidad = Decimal(request.POST.get('cantidad', '').strip())
+        except InvalidOperation:
+            messages.error(request, 'La cantidad debe ser un número.')
+            return redirect('devolver_venta', venta_id=venta.id)
+        if not cantidad.is_finite() or cantidad <= 0:
+            messages.error(request, 'La cantidad debe ser un número mayor que 0.')
+            return redirect('devolver_venta', venta_id=venta.id)
+        if producto.categoria.es_peso_variable and unidad not in ('g', 'kg'):
+            messages.error(request, 'Elige la unidad del peso: gramos o kilos.')
+            return redirect('devolver_venta', venta_id=venta.id)
+
+        cantidad = convertir_a_unidad_base(producto, cantidad, unidad)
+
+        if cantidad.as_tuple().exponent < -3:
+            messages.error(request, 'La cantidad es demasiado precisa (máximo 3 decimales en la unidad del producto).')
+            return redirect('devolver_venta', venta_id=venta.id)
+        if not producto.categoria.es_peso_variable and cantidad != cantidad.to_integral_value():
+            messages.error(request, 'Este producto se vende por unidades: ingresa un número entero.')
+            return redirect('devolver_venta', venta_id=venta.id)
+        if cantidad > disponible:
+            messages.error(
+                request,
+                f'No se puede devolver más de lo vendido. De "{producto.nombre}" solo se puede devolver '
+                f'{formats.localize(disponible.normalize())} {unidad_corta(producto)}.'
+            )
+            return redirect('devolver_venta', venta_id=venta.id)
+
+        # --- el valor que se descuenta, con el precio al que se vendió ---
+        if cantidad == disponible:
+            # se devuelve todo lo que quedaba: se descuenta exactamente lo que quedaba por devolver,
+            # así no sobran ni faltan centavos por redondeo
+            valor = detalle.subtotal - detalle.valor_devuelto()
+        else:
+            valor = calcular_subtotal(detalle.precio_unitario, cantidad)
+
+        caja = Caja.objects.select_for_update().filter(vendedor=request.user, abierta=True).first()
+        if caja is None:
+            messages.error(request, 'Primero debes abrir tu caja para registrar devoluciones.')
+            return redirect('abrir_caja')
+
+        Devolucion.objects.create(
+            detalle=detalle, cantidad=cantidad, valor=valor, vendedor=request.user, caja=caja,
+        )
+        # 17A: la cantidad vuelve al inventario
+        Producto.objects.filter(id=producto.id).update(stock=F('stock') + cantidad)
+
+    # 17B: el valor queda descontado del total vendido (Venta.total_neto) y, si la venta fue en
+    # efectivo, también del efectivo esperado en la caja.
+    messages.success(
+        request,
+        f'Devolución registrada: {formats.localize(cantidad.normalize())} {unidad_corta(producto)} de '
+        f'"{producto.nombre}". Se descontaron ${formats.number_format(valor, decimal_pos=0, force_grouping=True)} '
+        f'del total vendido.'
+    )
+    return redirect('devolver_venta', venta_id=venta.id)
