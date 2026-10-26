@@ -4,8 +4,8 @@ from functools import wraps
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.db.models import F
-from django.shortcuts import redirect, render
-from django.utils import formats
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import rol_requerido
@@ -130,6 +130,29 @@ def validar_cantidad(producto, texto, unidad, ya_en_la_venta=Decimal('0')):
     return errors, (None if errors else cantidad)
 
 
+def leer_monto(texto, nombre):
+    '''
+    Revisa un monto de dinero escrito por el vendedor (monto inicial o monto contado).
+    Devuelve (monto, error). Si hay error, el monto es None.
+    '''
+    texto = texto.strip()
+    if not texto:
+        return None, f'{nombre} es obligatorio.'
+    try:
+        monto = Decimal(texto)
+    except InvalidOperation:
+        return None, f'{nombre} debe ser un número.'
+    if not monto.is_finite():
+        return None, f'{nombre} debe ser un número.'
+    if monto < 0:
+        return None, f'{nombre} no puede ser negativo.'
+    if monto.as_tuple().exponent < -2:
+        return None, f'{nombre} puede tener máximo 2 decimales.'
+    if monto >= 10 ** 10:
+        return None, f'{nombre} es demasiado grande.'
+    return monto, None
+
+
 # ---------------------------------------------------------------
 # HU12: apertura de caja
 # ---------------------------------------------------------------
@@ -151,22 +174,9 @@ def abrir_caja(request):
             return redirect('abrir_caja')
 
         # 12C: el monto inicial es obligatorio
-        texto = request.POST.get('monto_inicial', '').strip()
-        if not texto:
-            errors.append('El monto inicial es obligatorio.')
-        else:
-            try:
-                monto = Decimal(texto)
-            except InvalidOperation:
-                monto = None
-            if monto is None or not monto.is_finite():
-                errors.append('El monto inicial debe ser un número.')
-            elif monto < 0:
-                errors.append('El monto inicial no puede ser negativo.')
-            elif monto.as_tuple().exponent < -2:
-                errors.append('El monto inicial puede tener máximo 2 decimales.')
-            elif monto >= 10 ** 10:
-                errors.append('El monto inicial es demasiado grande.')
+        monto, error = leer_monto(request.POST.get('monto_inicial', ''), 'El monto inicial')
+        if error:
+            errors.append(error)
 
         # 12A: si todo está bien, el monto queda como base de apertura de su caja
         if not errors:
@@ -292,6 +302,38 @@ def quitar_del_carrito(request, producto_id):
 
 @rol_requerido(Rol.VENDEDOR)
 @caja_requerida
+def revisar_venta(request):
+    # HU15: la factura para revisar antes de confirmar. Aquí se elige el método de pago.
+    carrito = leer_carrito(request)
+    lineas, total = armar_resumen(carrito)
+    if not lineas:
+        messages.error(request, 'Agrega al menos un producto a la venta.')
+        return redirect('nueva_venta')
+
+    # 15A: se avisa de lo que haya que corregir (por ejemplo, si el stock cambió)
+    problemas = []
+    if len(lineas) != len(carrito):
+        problemas.append('Un producto de la venta ya no está disponible. Quítalo en "Corregir venta".')
+    for linea in lineas:
+        producto = linea['producto']
+        if linea['cantidad'] > producto.stock:
+            problemas.append(
+                f'No hay suficientes unidades de "{producto.nombre}". '
+                f'Disponible: {formats.localize(producto.stock.normalize())} {linea["unidad"]}.'
+            )
+
+    return render(request, 'revisar_venta.html', {
+        'lineas': lineas,
+        'total': total,
+        'problemas': problemas,
+        'metodos_pago': Venta.METODO_PAGO_CHOICES,
+        'caja': caja_abierta(request.user),
+        'ahora': timezone.now(),
+    })
+
+
+@rol_requerido(Rol.VENDEDOR)
+@caja_requerida
 @require_POST
 def confirmar_venta(request):
     carrito = leer_carrito(request)
@@ -299,14 +341,12 @@ def confirmar_venta(request):
     errors = []
 
     if not carrito:
-        errors.append('Agrega al menos un producto a la venta.')
+        messages.error(request, 'Agrega al menos un producto a la venta.')
+        return redirect('nueva_venta')
     # 14I: hay que elegir el método de pago
     if metodo_pago not in dict(Venta.METODO_PAGO_CHOICES):
-        errors.append('Selecciona el método de pago.')
-    if errors:
-        for error in errors:
-            messages.error(request, error)
-        return redirect('nueva_venta')
+        messages.error(request, 'Selecciona el método de pago.')
+        return redirect('revisar_venta')
 
     with transaction.atomic():
         # se bloquean los productos mientras se guarda la venta, para que dos ventas
@@ -325,7 +365,7 @@ def confirmar_venta(request):
         if errors:
             for error in errors:
                 messages.error(request, error)
-            return redirect('nueva_venta')
+            return redirect('revisar_venta')
 
         # 12D: su caja tiene que seguir abierta al guardar (pudo cerrarse mientras armaba la venta)
         caja = Caja.objects.select_for_update().filter(vendedor=request.user, abierta=True).first()
@@ -356,3 +396,52 @@ def confirmar_venta(request):
         f'({venta.get_metodo_pago_display()}).'
     )
     return redirect('nueva_venta')
+
+
+# ---------------------------------------------------------------
+# HU18: cierre de caja
+# ---------------------------------------------------------------
+
+@rol_requerido(Rol.VENDEDOR)
+def cerrar_caja(request):
+    caja = caja_abierta(request.user)
+    if caja is None:
+        messages.error(request, 'No tienes una caja abierta para cerrar.')
+        return redirect('abrir_caja')
+
+    errors = []
+    datos = {}
+
+    if request.method == 'POST':
+        datos = request.POST
+
+        # 18A: el vendedor registra el monto final contado
+        monto, error = leer_monto(request.POST.get('monto_final', ''), 'El monto contado')
+        if error:
+            errors.append(error)
+        else:
+            with transaction.atomic():
+                caja = Caja.objects.select_for_update().filter(vendedor=request.user, abierta=True).first()
+                if caja is None:
+                    messages.error(request, 'Tu caja ya estaba cerrada.')
+                    return redirect('abrir_caja')
+                # 18A y 18B: compara contra lo esperado y guarda el descuadre
+                caja.cerrar(monto)
+
+            # 18C: al cerrar, ya no se puede vender hasta abrir una nueva caja
+            request.session.pop('carrito', None)      # la venta que estaba a medias se descarta
+            messages.success(request, 'Caja cerrada.')
+            return redirect('resultado_cierre', caja_id=caja.id)
+
+    return render(request, 'cerrar_caja.html', {
+        'caja': caja,
+        'errors': errors,
+        'datos': datos,
+    })
+
+
+@rol_requerido(Rol.VENDEDOR)
+def resultado_cierre(request, caja_id):
+    # 18B: muestra lo esperado, lo contado y el descuadre (solo el dueño de la caja)
+    caja = get_object_or_404(Caja, id=caja_id, vendedor=request.user, abierta=False)
+    return render(request, 'resultado_cierre.html', {'caja': caja})

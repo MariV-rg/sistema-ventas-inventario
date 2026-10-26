@@ -1,0 +1,236 @@
+{% load static %}
+{% load l10n %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revisar venta - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 antialiased">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-5 flex items-center justify-center gap-4">
+            <div class="bg-white/10 rounded-xl p-2 shadow-inner backdrop-blur-sm">
+                <img src="{% static 'inventario/img/icono.png' %}" alt="Icono inventario" class="w-10 h-10 md:w-12 md:h-12 rounded-lg object-contain">
+            </div>
+            <h1 class="text-xl md:text-2xl lg:text-3xl font-semibold tracking-wide">
+                Sistema de Gestión de Ventas e Inventario
+            </h1>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-1 container mx-auto px-4 py-8 max-w-3xl">
+
+        <!-- Encabezado de sección -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="flex-shrink-0 w-11 h-11 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </span>
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">Revisar venta</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Verifica los productos y cantidades antes de confirmar</p>
+                </div>
+            </div>
+
+            <a href="{% url 'nueva_venta' %}"
+               class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg transition-all w-fit">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Corregir venta
+            </a>
+        </div>
+
+        <!-- Mensajes -->
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                    <div class="flex items-start gap-2 border-l-4 rounded-md px-4 py-3 text-sm
+                        {% if message.tags == 'success' %}
+                            bg-green-50 border-green-500 text-green-700
+                        {% else %}
+                            bg-red-50 border-red-500 text-red-700
+                        {% endif %}">
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- 15A: cosas que hay que corregir antes de poder confirmar -->
+        {% if problemas %}
+            <div class="mb-6 bg-amber-50 border-l-4 border-amber-500 text-amber-800 text-sm rounded-md px-4 py-3">
+                <p class="font-semibold mb-1">Corrige esto antes de confirmar:</p>
+                <ul class="list-disc list-inside space-y-1">
+                    {% for problema in problemas %}
+                        <li>{{ problema }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <!-- Factura -->
+        <section class="bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100">
+                <h3 class="font-semibold text-slate-800">Factura de la venta</h3>
+                <p class="text-xs text-slate-500 mt-1">
+                    {{ ahora|date:"d/m/Y H:i" }} · Vendedor: {{ user.username }} · Caja #{{ caja.id }}
+                </p>
+            </div>
+
+            <div class="p-6">
+                <div class="overflow-x-auto -mx-6 px-6">
+                    <table class="w-full text-sm text-left min-w-[480px]">
+                        <thead class="text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 pr-4 font-semibold">Producto</th>
+                                <th class="py-3 px-4 font-semibold">Precio</th>
+                                <th class="py-3 px-4 font-semibold">Cantidad</th>
+                                <th class="py-3 pl-4 font-semibold text-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for l in lineas %}
+                                <tr>
+                                    <td class="py-3 pr-4 font-semibold text-slate-800">{{ l.producto.nombre }}</td>
+                                    <td class="py-3 px-4 text-slate-600 whitespace-nowrap">
+                                        ${{ l.producto.precio|floatformat:"-2g" }}
+                                        <span class="text-xs text-slate-400">por {{ l.unidad }}</span>
+                                    </td>
+                                    <td class="py-3 px-4 text-slate-700 whitespace-nowrap">
+                                        {{ l.cantidad|floatformat:"-3" }} {{ l.unidad }}
+                                    </td>
+                                    <td class="py-3 pl-4 text-right font-bold text-slate-800 whitespace-nowrap">
+                                        ${{ l.subtotal|floatformat:"-2g" }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between">
+                    <span class="text-sm font-medium text-slate-500 uppercase tracking-wide">
+                        Total ({{ lineas|length }} ítem{{ lineas|length|pluralize }})
+                    </span>
+                    <span class="text-2xl font-bold text-indigo-600">${{ total|floatformat:"-2g" }}</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Confirmar -->
+        <section class="mt-6 bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100">
+                <h3 class="font-semibold text-slate-800">Método de pago</h3>
+            </div>
+
+            <div class="p-6">
+                <form method="post" action="{% url 'confirmar_venta' %}" class="space-y-4">
+                    {% csrf_token %}
+
+                    <div>
+                        <label for="id_metodo_pago" class="block text-sm font-medium text-slate-700 mb-1.5">
+                            ¿Cómo paga el cliente?
+                        </label>
+                        <select name="metodo_pago" id="id_metodo_pago" required
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                            <option value="">Seleccione...</option>
+                            {% for valor, nombre in metodos_pago %}
+                                <option value="{{ valor }}">{{ nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Efectivo: con cuánto paga y cuánto es el cambio -->
+                    <div id="bloque-efectivo" class="hidden space-y-3">
+                         <div>
+                            <label for="id_recibido" class="block text-sm font-medium text-slate-700 mb-1.5">
+                                ¿Con cuánto paga el cliente?
+                            </label>
+                            {# sin name: es solo para calcular, no se envía ni se guarda #}
+                            <input type="number" id="id_recibido" min="0" step="any" inputmode="numeric" placeholder="Ej: 100000" 
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                        </div>
+                        <div id="caja-cambio" class="flex items-center justify-between rounded-lg bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
+                            <span id="cambio-etiqueta" class="text-sm font-medium text-slate-500 uppercase tracking-wide">Cambio</span>
+                            <span id="cambio-valor" class="text-xl font-bold text-slate-400">$0</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <a href="{% url 'nueva_venta' %}"
+                           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-600 font-semibold rounded-lg px-6 py-2.5 ring-1 ring-slate-200 transition-all">
+                            Corregir venta
+                        </a>
+
+                        <button type="submit" {% if problemas %}disabled{% endif %}
+                                class="w-full sm:flex-1 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold rounded-lg py-2.5 shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Confirmar venta
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-center py-4 text-sm border-t border-slate-800 mt-8">
+        <div class="container mx-auto px-4">
+            <p class="tracking-wide">Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
+
+<script>
+    const TOTAL = Number("{{ total|unlocalize }}");
+    const selectPago = document.getElementById('id_metodo_pago');
+    const bloque = document.getElementById('bloque-efectivo');
+    const recibido = document.getElementById('id_recibido');
+    const caja = document.getElementById('caja-cambio');
+    const etiqueta = document.getElementById('cambio-etiqueta');
+    const valor = document.getElementById('cambio-valor');
+
+    const pesos = n => '$' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
+
+    function actualizarCambio() {
+        const dinero = parseFloat(recibido.value);
+        caja.className = 'flex items-center justify-between rounded-lg px-4 py-3 ring-1 ';
+
+        if (isNaN(dinero)) {
+            caja.className += 'bg-slate-50 ring-slate-200';
+            etiqueta.textContent = 'Cambio';
+            valor.textContent = '$0';
+            valor.className = 'text-xl font-bold text-slate-400';
+        } else if (dinero >= TOTAL) {
+            caja.className += 'bg-green-50 ring-green-200';
+            etiqueta.textContent = 'Cambio a devolver';
+            valor.textContent = pesos(dinero - TOTAL);
+            valor.className = 'text-xl font-bold text-green-600';
+        } else {
+            caja.className += 'bg-red-50 ring-red-200';
+            etiqueta.textContent = 'Falta por pagar';
+            valor.textContent = pesos(TOTAL - dinero);
+            valor.className = 'text-xl font-bold text-red-600';
+        }
+    }
+
+    selectPago.addEventListener('change', () => {
+        const esEfectivo = selectPago.value === 'EFECTIVO';
+        bloque.classList.toggle('hidden', !esEfectivo);
+        if (esEfectivo) recibido.focus();
+    });
+    recibido.addEventListener('input', actualizarCambio);
+</script>
+
+</body>
+</html>
