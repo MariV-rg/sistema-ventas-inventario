@@ -1,0 +1,147 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cerrar caja - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 antialiased">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-5 flex items-center justify-center gap-4">
+            <div class="bg-white/10 rounded-xl p-2 shadow-inner backdrop-blur-sm">
+                <img src="{% static 'inventario/img/icono.png' %}" alt="Icono inventario" class="w-10 h-10 md:w-12 md:h-12 rounded-lg object-contain">
+            </div>
+            <h1 class="text-xl md:text-2xl lg:text-3xl font-semibold tracking-wide">
+                Sistema de Gestión de Ventas e Inventario
+            </h1>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-1 container mx-auto px-4 py-8 max-w-2xl">
+
+        <!-- Encabezado de sección -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="flex-shrink-0 w-11 h-11 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                </span>
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">Cerrar caja</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Cuenta el efectivo y registra el monto final</p>
+                </div>
+            </div>
+
+            <a href="{% url 'abrir_caja' %}"
+               class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg transition-all w-fit">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Volver
+            </a>
+        </div>
+
+        <!-- Mensajes -->
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                    <div class="flex items-start gap-2 border-l-4 rounded-md px-4 py-3 text-sm
+                        {% if message.tags == 'success' %}
+                            bg-green-50 border-green-500 text-green-700
+                        {% else %}
+                            bg-red-50 border-red-500 text-red-700
+                        {% endif %}">
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Errores del formulario -->
+        {% if errors %}
+            <div class="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded-md px-4 py-3">
+                <ul class="space-y-1">
+                    {% for error in errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <section class="bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                <h3 class="font-semibold text-slate-800">Resumen de tu caja</h3>
+            </div>
+
+            <div class="p-6 space-y-5">
+                <dl class="rounded-lg bg-slate-50 ring-1 ring-slate-200 p-4 space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <dt class="text-slate-500">Abierta desde</dt>
+                        <dd class="font-medium text-slate-800">{{ caja.fecha_apertura|date:"d/m/Y H:i" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-slate-500">Monto inicial</dt>
+                        <dd class="font-medium text-slate-800">${{ caja.monto_inicial|floatformat:"-2g" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-slate-500">Ventas en efectivo</dt>
+                        <dd class="font-medium text-slate-800">${{ caja.ventas_en_efectivo|floatformat:"-2g" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-slate-500">Ventas por Nequi, Daviplata u otros</dt>
+                        <dd class="font-medium text-slate-400">${{ caja.ventas_por_otros_medios|floatformat:"-2g" }}</dd>
+                    </div>
+                    <div class="flex justify-between border-t border-slate-200 pt-2">
+                        <dt class="font-semibold text-slate-700">Efectivo esperado en caja</dt>
+                        <dd class="font-bold text-indigo-600">${{ caja.efectivo_esperado|floatformat:"-2g" }}</dd>
+                    </div>
+                </dl>
+
+                <!-- 18A: monto final contado -->
+                <form method="post" class="space-y-4"
+                      onsubmit="return confirm('¿Cerrar la caja? No podrás registrar ventas hasta abrir una nueva.');">
+                    {% csrf_token %}
+
+                    <div>
+                        <label for="id_monto_final" class="block text-sm font-medium text-slate-700 mb-1.5">
+                            Monto final contado (el efectivo que hay en la caja)
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 text-sm">$</span>
+                            <input type="number" name="monto_final" id="id_monto_final" step="any"
+                                   value="{{ datos.monto_final }}" placeholder="Ej: 120000"
+                                   class="w-full border border-slate-300 rounded-lg pl-7 pr-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-500">
+                        Al cerrar, el sistema compara lo que contaste con el efectivo esperado y te muestra si hay diferencia.
+                        Después no podrás registrar ventas hasta abrir una nueva caja.
+                    </p>
+
+                    <button type="submit"
+                            class="w-full inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold rounded-lg py-2.5 shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                        Cerrar caja
+                    </button>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-center py-4 text-sm border-t border-slate-800 mt-8">
+        <div class="container mx-auto px-4">
+            <p class="tracking-wide">Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
+
+</body>
+</html>

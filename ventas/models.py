@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q, Sum, UniqueConstraint
+from django.utils import timezone
 
 from inventario.models import Producto
 
@@ -18,8 +19,11 @@ class Caja(models.Model):
     monto_inicial = models.DecimalField(max_digits=12, decimal_places=2)                  # base de apertura
     abierta = models.BooleanField(default=True)
 
-    # HU18 (cierre de caja): aquí se agregan la fecha de cierre, el monto final contado
-    # y el descuadre. El efectivo esperado = monto_inicial + ventas en efectivo de esta caja.
+    # HU18 (cierre de caja): se llenan cuando el vendedor cierra su caja
+    fecha_cierre = models.DateTimeField(null=True, blank=True)
+    monto_final = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)     # lo que contó
+    monto_esperado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # lo que calculó el sistema
+    diferencia = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)      # contado - esperado
 
     class Meta:
         ordering = ['-fecha_apertura']
@@ -42,6 +46,23 @@ class Caja(models.Model):
     def efectivo_esperado(self):
         '''Lo que debería haber en la caja: monto inicial + ventas en efectivo (la HU18 lo compara al cerrar).'''
         return self.monto_inicial + self.ventas_en_efectivo()
+
+    def diferencia_absoluta(self):
+        '''El descuadre sin signo, para mostrarlo: "Sobran $X" o "Faltan $X".'''
+        return abs(self.diferencia) if self.diferencia is not None else Decimal('0')
+
+    def cerrar(self, monto_final):
+        '''
+        18A: cierra la caja. Compara lo que el vendedor contó con lo esperado por el sistema
+        (monto inicial + ventas en efectivo) y guarda el resultado.
+        18B: diferencia positiva = sobra dinero (a favor); negativa = falta dinero (en contra).
+        '''
+        self.monto_esperado = self.efectivo_esperado()
+        self.monto_final = monto_final
+        self.diferencia = monto_final - self.monto_esperado
+        self.fecha_cierre = timezone.now()
+        self.abierta = False
+        self.save()
 
     def __str__(self):
         return f'Caja #{self.id}'
