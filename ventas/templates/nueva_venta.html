@@ -346,6 +346,16 @@
                                     </svg>
                                     Revisar venta
                                 </a>
+
+                                {# HU16: cancelar la venta en proceso (no toca el inventario) #}
+                                <form method="post" action="{% url 'cancelar_venta' %}"
+                                      onsubmit="return confirm('¿Cancelar la venta? Se quitarán todos los productos de la lista.');">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="w-full inline-flex items-center justify-center gap-2 bg-white hover:bg-red-50 text-red-600 font-semibold rounded-lg py-2.5 ring-1 ring-red-200 transition-all">
+                                        Cancelar venta
+                                    </button>
+                                </form>
                             </div>
                         {% else %}
                             <div class="text-center py-6">
