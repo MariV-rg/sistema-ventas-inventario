@@ -1,0 +1,289 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de ventas - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-800 antialiased">
+
+    <!-- Header Principal -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+                    <img src="{% static 'inventario/img/icono.png' %}" alt="Icono" class="w-8 h-8 md:w-10 md:h-10 rounded-md object-contain">
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold tracking-wide leading-tight">Sistema de Ventas</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Gestión e Inventario</p>
+                </div>
+            </div>
+
+            <!-- Perfil / Volver -->
+            <div class="flex items-center gap-3">
+                <a href="{% url 'home' %}" class="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:inline-flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Volver al inicio
+                </a>
+                <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
+                    {{ user.username|first|upper }}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-1 container mx-auto px-4 py-8 max-w-6xl">
+
+        <!-- Encabezado de sección -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="flex-shrink-0 w-11 h-11 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </span>
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">Historial de ventas</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Consulta las ventas por día, semana o mes</p>
+                </div>
+            </div>
+
+            <a href="{% url 'home' %}"
+               class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg shadow-sm transition-all w-fit">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Volver
+            </a>
+        </div>
+
+        <!-- Mensajes -->
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                    <div class="flex items-start gap-2 border-l-4 rounded-md px-4 py-3 text-sm bg-red-50 border-red-500 text-red-700">
+                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/>
+                        </svg>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Filtros: periodo y fecha -->
+        <section class="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm p-4 mb-6">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
+                <!-- Día / Semana / Mes -->
+                <div class="inline-flex rounded-xl ring-1 ring-slate-200 overflow-hidden w-fit bg-white">
+                    {% for clave, nombre in periodos.items %}
+                        <a href="?periodo={{ clave }}&fecha={{ referencia|date:'Y-m-d' }}"
+                           class="px-4 py-2 text-sm font-semibold transition-colors
+                                  {% if clave == periodo %}bg-indigo-600 text-white{% else %}bg-white text-slate-600 hover:bg-slate-50{% endif %}">
+                            {{ nombre }}
+                        </a>
+                    {% endfor %}
+                </div>
+
+                <!-- Anterior / fecha / siguiente / hoy -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="?periodo={{ periodo }}&fecha={{ anterior|date:'Y-m-d' }}"
+                       class="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-xl px-3 py-2 ring-1 ring-slate-200 transition-all"
+                       title="Periodo anterior">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                        Anterior
+                    </a>
+
+                    <form method="get" class="flex items-center gap-2">
+                        <input type="hidden" name="periodo" value="{{ periodo }}">
+                        <input type="date" name="fecha" value="{{ referencia|date:'Y-m-d' }}" max="{{ hoy|date:'Y-m-d' }}"
+                               class="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl px-3.5 py-2 shadow-sm transition-all">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            Ver
+                        </button>
+                    </form>
+
+                    <a href="?periodo={{ periodo }}&fecha={{ siguiente|date:'Y-m-d' }}"
+                       class="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-xl px-3 py-2 ring-1 ring-slate-200 transition-all"
+                       title="Periodo siguiente">
+                        Siguiente
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+
+                    <a href="?periodo={{ periodo }}"
+                       class="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-sm font-semibold rounded-xl px-3 py-2 ring-1 ring-indigo-200 transition-all">
+                        Hoy
+                    </a>
+                </div>
+            </div>
+
+            <p class="mt-4 text-sm text-slate-500 flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                Mostrando:
+                <span class="font-semibold text-slate-800">
+                    {% if periodo == 'dia' %}
+                        {{ inicio|date:"l, d \d\e F \d\e Y" }}
+                    {% elif periodo == 'semana' %}
+                        del {{ inicio|date:"d/m/Y" }} al {{ ultimo_dia|date:"d/m/Y" }}
+                    {% else %}
+                        {{ inicio|date:"F \d\e Y" }}
+                    {% endif %}
+                </span>
+            </p>
+        </section>
+
+        <!-- Resumen del periodo -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div class="bg-white rounded-xl ring-1 ring-slate-200 shadow-sm p-4 flex items-start gap-3">
+                <span class="flex-shrink-0 w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </span>
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Ventas</p>
+                    <p class="mt-0.5 text-xl font-bold text-slate-800">{{ cantidad }}</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl ring-1 ring-slate-200 shadow-sm p-4 flex items-start gap-3">
+                <span class="flex-shrink-0 w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </span>
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Total vendido</p>
+                    <p class="mt-0.5 text-xl font-bold text-slate-800">${{ total_vendido|floatformat:"-2g" }}</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl ring-1 ring-slate-200 shadow-sm p-4 flex items-start gap-3">
+                <span class="flex-shrink-0 w-9 h-9 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4"/>
+                    </svg>
+                </span>
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Devoluciones</p>
+                    <p class="mt-0.5 text-xl font-bold {% if total_devuelto %}text-red-600{% else %}text-slate-400{% endif %}">
+                        -${{ total_devuelto|floatformat:"-2g" }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl ring-1 ring-indigo-200 shadow-sm p-4 flex items-start gap-3">
+                <span class="flex-shrink-0 w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </span>
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-indigo-600">Total neto</p>
+                    <p class="mt-0.5 text-xl font-bold text-indigo-600">${{ total_neto|floatformat:"-2g" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de transacciones -->
+        <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            {% if filas %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left min-w-[780px]">
+                        <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider border-b border-slate-200">
+                            <tr>
+                                <th class="py-3.5 px-5 font-semibold">Venta</th>
+                                <th class="py-3.5 px-5 font-semibold">Fecha y hora</th>
+                                <th class="py-3.5 px-5 font-semibold">Productos</th>
+                                <th class="py-3.5 px-5 font-semibold">Pago</th>
+                                <th class="py-3.5 px-5 font-semibold text-right">Total</th>
+                                <th class="py-3.5 px-5 font-semibold text-right">Devuelto</th>
+                                <th class="py-3.5 px-5 font-semibold text-right">Neto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for f in filas %}
+                                <tr class="align-top hover:bg-slate-50/70 transition-colors">
+                                    <td class="py-3.5 px-5">
+                                        <span class="font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md text-xs">#{{ f.venta.id }}</span>
+                                    </td>
+                                    <td class="py-3.5 px-5 whitespace-nowrap">
+                                        <p class="text-slate-600">{{ f.venta.fecha|date:"d/m/Y" }}</p>
+                                        <p class="font-semibold text-slate-800">{{ f.venta.fecha|date:"H:i" }}</p>
+                                        <p class="text-xs text-slate-400">{{ f.venta.vendedor.username }}</p>
+                                    </td>
+                                    <td class="py-3.5 px-5">
+                                        <ul class="space-y-1">
+                                            {% for l in f.lineas %}
+                                                <li class="text-slate-700">
+                                                    {{ l.nombre }}
+                                                    <span class="text-slate-400 mx-1">&times;</span>
+                                                    <span class="font-semibold">{{ l.cantidad|floatformat:"-3" }} {{ l.unidad }}</span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </td>
+                                    <td class="py-3.5 px-5 text-slate-600">{{ f.venta.get_metodo_pago_display }}</td>
+                                    <td class="py-3.5 px-5 text-right text-slate-800 whitespace-nowrap font-medium">
+                                        ${{ f.venta.total|floatformat:"-2g" }}
+                                    </td>
+                                    <td class="py-3.5 px-5 text-right whitespace-nowrap">
+                                        {% if f.devuelto %}
+                                            <span class="inline-flex items-center gap-1 bg-red-50 text-red-700 font-semibold px-2 py-1 rounded-md ring-1 ring-red-200 text-xs">
+                                                - ${{ f.devuelto|floatformat:"-2g" }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-slate-300">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-3.5 px-5 text-right font-bold text-slate-800 whitespace-nowrap">
+                                        ${{ f.neto|floatformat:"-2g" }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                {# 19B: no hay ventas en el periodo consultado #}
+                <div class="px-6 py-16 text-center">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 text-slate-400 mb-4">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                    </div>
+                    <p class="font-semibold text-slate-700">No hay registros de ventas en este periodo</p>
+                    <p class="text-sm text-slate-500 mt-1 max-w-md mx-auto">Prueba con otra fecha o cambia entre día, semana y mes.</p>
+                </div>
+            {% endif %}
+        </section>
+
+    </main>
+
+    <!-- Footer unificado -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm text-slate-500">
+            <p>Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
+
+</body>
+</html>

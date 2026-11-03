@@ -8,17 +8,34 @@
     <title>Revisar venta - Sistema de Ventas</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 antialiased">
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-800 antialiased">
 
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-5 flex items-center justify-center gap-4">
-            <div class="bg-white/10 rounded-xl p-2 shadow-inner backdrop-blur-sm">
-                <img src="{% static 'inventario/img/icono.png' %}" alt="Icono inventario" class="w-10 h-10 md:w-12 md:h-12 rounded-lg object-contain">
+    <!-- Header Principal -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+                    <img src="{% static 'inventario/img/icono.png' %}" alt="Icono" class="w-8 h-8 md:w-10 md:h-10 rounded-md object-contain">
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold tracking-wide leading-tight">Sistema de Ventas</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Gestión e Inventario</p>
+                </div>
             </div>
-            <h1 class="text-xl md:text-2xl lg:text-3xl font-semibold tracking-wide">
-                Sistema de Gestión de Ventas e Inventario
-            </h1>
+
+            <!-- Perfil / Volver -->
+            <div class="flex items-center gap-3">
+                <a href="{% url 'nueva_venta' %}" class="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:inline-flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Volver a la venta
+                </a>
+                <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
+                    {{ user.username|first|upper }}
+                </div>
+            </div>
         </div>
     </header>
 
@@ -40,7 +57,7 @@
             </div>
 
             <a href="{% url 'nueva_venta' %}"
-               class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg transition-all w-fit">
+               class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg shadow-sm transition-all w-fit">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                 </svg>
@@ -53,36 +70,52 @@
             <div class="mb-6 space-y-2">
                 {% for message in messages %}
                     <div class="flex items-start gap-2 border-l-4 rounded-md px-4 py-3 text-sm
-                        {% if message.tags == 'success' %}
-                            bg-green-50 border-green-500 text-green-700
-                        {% else %}
-                            bg-red-50 border-red-500 text-red-700
-                        {% endif %}">
+                        {% if message.tags == 'success' %} bg-green-50 border-green-500 text-green-700
+                        {% else %} bg-red-50 border-red-500 text-red-700 {% endif %}">
+                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {% if message.tags == 'success' %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            {% else %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/>
+                            {% endif %}
+                        </svg>
                         <span>{{ message }}</span>
                     </div>
                 {% endfor %}
             </div>
         {% endif %}
 
-        <!-- 15A: cosas que hay que corregir antes de poder confirmar -->
+        <!-- 15A: problemas que hay que corregir -->
         {% if problemas %}
-            <div class="mb-6 bg-amber-50 border-l-4 border-amber-500 text-amber-800 text-sm rounded-md px-4 py-3">
-                <p class="font-semibold mb-1">Corrige esto antes de confirmar:</p>
-                <ul class="list-disc list-inside space-y-1">
-                    {% for problema in problemas %}
-                        <li>{{ problema }}</li>
-                    {% endfor %}
-                </ul>
+            <div class="mb-6 flex items-start gap-2 bg-amber-50 border-l-4 border-amber-500 text-amber-800 text-sm rounded-md px-4 py-3">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/>
+                </svg>
+                <div>
+                    <p class="font-semibold mb-1">Corrige esto antes de confirmar:</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        {% for problema in problemas %}
+                            <li>{{ problema }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
         {% endif %}
 
         <!-- Factura -->
-        <section class="bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100">
-                <h3 class="font-semibold text-slate-800">Factura de la venta</h3>
-                <p class="text-xs text-slate-500 mt-1">
-                    {{ ahora|date:"d/m/Y H:i" }} · Vendedor: {{ user.username }} · Caja #{{ caja.id }}
-                </p>
+        <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-3">
+                <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </span>
+                <div>
+                    <h3 class="font-semibold text-slate-800">Factura de la venta</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        {{ ahora|date:"d/m/Y H:i" }} · Vendedor: {{ user.username }} · Caja #{{ caja.id }}
+                    </p>
+                </div>
             </div>
 
             <div class="p-6">
@@ -98,7 +131,7 @@
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             {% for l in lineas %}
-                                <tr>
+                                <tr class="hover:bg-slate-50/70 transition-colors">
                                     <td class="py-3 pr-4 font-semibold text-slate-800">{{ l.producto.nombre }}</td>
                                     <td class="py-3 px-4 text-slate-600 whitespace-nowrap">
                                         ${{ l.producto.precio|floatformat:"-2g" }}
@@ -117,7 +150,7 @@
                 </div>
 
                 <div class="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between">
-                    <span class="text-sm font-medium text-slate-500 uppercase tracking-wide">
+                    <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                         Total ({{ lineas|length }} ítem{{ lineas|length|pluralize }})
                     </span>
                     <span class="text-2xl font-bold text-indigo-600">${{ total|floatformat:"-2g" }}</span>
@@ -126,13 +159,21 @@
         </section>
 
         <!-- Confirmar -->
-        <section class="mt-6 bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100">
-                <h3 class="font-semibold text-slate-800">Método de pago</h3>
+        <section class="mt-6 bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-3">
+                <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </span>
+                <div>
+                    <h3 class="font-semibold text-slate-800">Método de pago</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Indica cómo pagará el cliente</p>
+                </div>
             </div>
 
             <div class="p-6">
-                <form method="post" action="{% url 'confirmar_venta' %}" class="space-y-4">
+                <form method="post" action="{% url 'confirmar_venta' %}" class="space-y-5">
                     {% csrf_token %}
 
                     <div>
@@ -140,7 +181,7 @@
                             ¿Cómo paga el cliente?
                         </label>
                         <select name="metodo_pago" id="id_metodo_pago" required
-                                class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
                             <option value="">Seleccione...</option>
                             {% for valor, nombre in metodos_pago %}
                                 <option value="{{ valor }}">{{ nombre }}</option>
@@ -148,31 +189,37 @@
                         </select>
                     </div>
 
-                    <!-- Efectivo: con cuánto paga y cuánto es el cambio -->
+                    <!-- Efectivo: cambio -->
                     <div id="bloque-efectivo" class="hidden space-y-3">
                         <div>
                             <label for="id_recibido" class="block text-sm font-medium text-slate-700 mb-1.5">
                                 ¿Con cuánto paga el cliente?
                             </label>
                             {# sin name: es solo para calcular, no se envía ni se guarda #}
-                            <input type="number" id="id_recibido" min="0" step="any" inputmode="numeric" placeholder="Ej: 100000"
-                                   class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-medium">$</span>
+                                <input type="number" id="id_recibido" min="0" step="any" inputmode="numeric" placeholder="Ej: 100000"
+                                       class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                            </div>
                         </div>
 
-                        <div id="caja-cambio" class="flex items-center justify-between rounded-lg bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
-                            <span id="cambio-etiqueta" class="text-sm font-medium text-slate-500 uppercase tracking-wide">Cambio</span>
+                        <div id="caja-cambio" class="flex items-center justify-between rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
+                            <span id="cambio-etiqueta" class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Cambio</span>
                             <span id="cambio-valor" class="text-xl font-bold text-slate-400">$0</span>
                         </div>
                     </div>
 
-                    <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="flex flex-col sm:flex-row gap-3 pt-2">
                         <a href="{% url 'nueva_venta' %}"
-                           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-600 font-semibold rounded-lg px-6 py-2.5 ring-1 ring-slate-200 transition-all">
+                           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-600 font-medium rounded-xl px-6 py-2.5 border border-slate-200 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                            </svg>
                             Corregir venta
                         </a>
 
                         <button type="submit" {% if problemas %}disabled{% endif %}
-                                class="w-full sm:flex-1 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold rounded-lg py-2.5 shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                class="w-full sm:flex-1 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold rounded-xl py-2.5 shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
@@ -181,12 +228,15 @@
                     </div>
                 </form>
 
-                {# HU16: cancelar la venta en proceso (no toca el inventario) #}
-                <form method="post" action="{% url 'cancelar_venta' %}" class="mt-3"
+                {# HU16: cancelar la venta en proceso #}
+                <form method="post" action="{% url 'cancelar_venta' %}" class="mt-3 pt-4 border-t border-slate-100"
                       onsubmit="return confirm('¿Cancelar la venta? Se quitarán todos los productos de la lista.');">
                     {% csrf_token %}
                     <button type="submit"
-                            class="w-full inline-flex items-center justify-center gap-2 bg-white hover:bg-red-50 text-red-600 font-semibold rounded-lg py-2.5 ring-1 ring-red-200 transition-all">
+                            class="w-full inline-flex items-center justify-center gap-2 bg-white hover:bg-red-50 text-red-600 font-medium rounded-xl py-2.5 ring-1 ring-red-200 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
                         Cancelar venta
                     </button>
                 </form>
@@ -195,10 +245,10 @@
 
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-slate-900 text-slate-400 text-center py-4 text-sm border-t border-slate-800 mt-8">
-        <div class="container mx-auto px-4">
-            <p class="tracking-wide">Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+    <!-- Footer unificado -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm text-slate-500">
+            <p>Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
         </div>
     </footer>
 
@@ -215,7 +265,7 @@
 
         function actualizarCambio() {
             const dinero = parseFloat(recibido.value);
-            caja.className = 'flex items-center justify-between rounded-lg px-4 py-3 ring-1 ';
+            caja.className = 'flex items-center justify-between rounded-xl px-4 py-3 ring-1 ';
 
             if (isNaN(dinero)) {
                 caja.className += 'bg-slate-50 ring-slate-200';

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Caja, DetalleVenta, Venta
+from .models import Caja, DetalleVenta, Devolucion, Venta
 
 
 class DetalleVentaInline(admin.TabularInline):
@@ -19,3 +19,8 @@ class VentaAdmin(admin.ModelAdmin):
 class CajaAdmin(admin.ModelAdmin):
     list_display = ('id', 'vendedor', 'fecha_apertura', 'monto_inicial', 'abierta')
     list_filter = ('abierta',)
+
+
+@admin.register(Devolucion)
+class DevolucionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'fecha', 'detalle', 'cantidad', 'valor', 'vendedor', 'caja')

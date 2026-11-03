@@ -1,9 +1,10 @@
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
 
 from django.contrib import messages
 from django.db import IntegrityError, transaction
-from django.db.models import F
+from django.db.models import F, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
@@ -592,3 +593,92 @@ def registrar_devolucion(request, venta_id):
         f'del total vendido.'
     )
     return redirect('devolver_venta', venta_id=venta.id)
+
+
+# ---------------------------------------------------------------
+# HU19: historial de ventas (solo administrador)
+# ---------------------------------------------------------------
+
+PERIODOS = {'dia': 'Día', 'semana': 'Semana', 'mes': 'Mes'}
+
+
+def rango_del_periodo(periodo, referencia):
+    '''
+    Devuelve (inicio, fin) del periodo que contiene la fecha de referencia.
+    El inicio entra y el fin no entra: la semana va de lunes a domingo.
+    '''
+    if periodo == 'semana':
+        inicio = referencia - timedelta(days=referencia.weekday())          # el lunes
+        fin = inicio + timedelta(days=7)
+    elif periodo == 'mes':
+        inicio = referencia.replace(day=1)
+        fin = (inicio.replace(day=28) + timedelta(days=4)).replace(day=1)   # primer día del mes siguiente
+    else:
+        inicio = referencia
+        fin = inicio + timedelta(days=1)
+    return inicio, fin
+
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def historial_ventas(request):
+    hoy = timezone.localdate()
+
+    periodo = request.GET.get('periodo', 'dia')
+    if periodo not in PERIODOS:
+        periodo = 'dia'
+    try:
+        referencia = date.fromisoformat(request.GET.get('fecha', ''))
+    except ValueError:
+        referencia = hoy
+
+    inicio, fin = rango_del_periodo(periodo, referencia)
+    zona = timezone.get_current_timezone()
+    desde = datetime.combine(inicio, time.min, tzinfo=zona)
+    hasta = datetime.combine(fin, time.min, tzinfo=zona)
+
+    # 19A: las ventas del periodo elegido, de la más reciente a la más antigua
+    ventas = (Venta.objects.filter(fecha__gte=desde, fecha__lt=hasta)
+              .select_related('vendedor')
+              .prefetch_related('detalles__producto__categoria')
+              .order_by('-fecha'))
+
+    # 17B: lo devuelto de cada venta, para mostrar el total neto (en una sola consulta)
+    devuelto_por_venta = {
+        fila['detalle__venta']: fila['total']
+        for fila in (Devolucion.objects.filter(detalle__venta__in=ventas)
+                     .order_by().values('detalle__venta').annotate(total=Sum('valor')))
+    }
+
+    filas = []
+    total_vendido = Decimal('0')
+    total_devuelto = Decimal('0')
+    for venta in ventas:
+        devuelto = devuelto_por_venta.get(venta.id, Decimal('0'))
+        filas.append({
+            'venta': venta,
+            'lineas': [
+                {'nombre': d.producto.nombre, 'cantidad': d.cantidad, 'unidad': unidad_corta(d.producto)}
+                for d in venta.detalles.all()
+            ],
+            'devuelto': devuelto,
+            'neto': venta.total - devuelto,
+        })
+        total_vendido += venta.total
+        total_devuelto += devuelto
+
+    # 19B: si no hay ventas, la plantilla muestra "no hay registros" (la lista llega vacía)
+    return render(request, 'historial_ventas.html', {
+        'periodo': periodo,
+        'periodos': PERIODOS,
+        'referencia': referencia,
+        'inicio': inicio,
+        'ultimo_dia': fin - timedelta(days=1),
+        'anterior': inicio - timedelta(days=1),   # cae dentro del periodo anterior
+        'siguiente': fin,                          # es el primer día del periodo siguiente
+        'hoy': hoy,
+        'filas': filas,
+        'cantidad': len(filas),
+        'total_vendido': total_vendido,
+        'total_devuelto': total_devuelto,
+        'total_neto': total_vendido - total_devuelto,
+    })

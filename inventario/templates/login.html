@@ -7,17 +7,18 @@
     <title>Iniciar sesión - Sistema de Ventas</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 antialiased">
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-800 antialiased">
 
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-5 flex items-center justify-center gap-4">
-            <div class="bg-white/10 rounded-xl p-2 shadow-inner backdrop-blur-sm">
-                <img src="{% static 'inventario/img/icono.png' %}" alt="Icono inventario" class="w-10 h-10 md:w-12 md:h-12 rounded-lg object-contain">
+    <!-- Header (Centrado porque es pantalla de Login) -->
+    <header class="bg-slate-900 text-white shadow-md">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-center gap-3">
+            <div class="bg-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+                <img src="{% static 'inventario/img/icono.png' %}" alt="Icono" class="w-8 h-8 md:w-10 md:h-10 rounded-md object-contain">
             </div>
-            <h1 class="text-xl md:text-2xl lg:text-3xl font-semibold tracking-wide">
-                Sistema de Gestión de Ventas e Inventario
-            </h1>
+            <div class="text-center">
+                <h1 class="text-lg md:text-xl font-bold tracking-wide leading-tight">Sistema de Ventas</h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestión e Inventario</p>
+            </div>
         </div>
     </header>
 
@@ -26,7 +27,7 @@
         <div class="w-full max-w-md">
 
             <!-- Card -->
-            <div class="bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 p-8 md:p-10 transition-all duration-300 hover:shadow-2xl">
+            <div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-8 md:p-10">
 
                 <!-- Encabezado -->
                 <div class="text-center mb-8">
@@ -73,7 +74,7 @@
                                 </svg>
                             </span>
                             <input type="text" name="username" id="id_username" required autofocus
-                                   class="w-full border border-slate-300 rounded-lg pl-10 pr-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
                         </div>
                         {% if form.username.errors %}
                             <p class="flex items-center gap-1 text-red-600 text-sm mt-1.5">
@@ -97,7 +98,7 @@
                                 </svg>
                             </span>
                             <input type="password" name="password" id="id_password" required
-                                   class="w-full border border-slate-300 rounded-lg pl-10 pr-10 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-10 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
                             <button type="button" onclick="togglePassword('id_password', this)"
                                     class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                                     aria-label="Mostrar u ocultar contraseña">
@@ -124,7 +125,7 @@
 
                     <!-- Botón submit -->
                     <button type="submit"
-                            class="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-lg py-2.5 shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                            class="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl py-3 shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
                         </svg>
@@ -134,18 +135,18 @@
 
             </div>
 
-            <!-- Footer dentro del flujo del main -->
-            <p class="text-center text-xs text-slate-400 mt-6">
+            <!-- Nota al pie de la card -->
+            <p class="text-center text-xs text-slate-500 mt-6">
                 ¿Olvidaste tu contraseña? Contacta al administrador.
             </p>
 
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-slate-900 text-slate-400 text-center py-4 text-sm border-t border-slate-800">
-        <div class="container mx-auto px-4">
-            <p class="tracking-wide">Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+    <!-- Footer unificado -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm text-slate-500">
+            <p>Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
         </div>
     </footer>
 
