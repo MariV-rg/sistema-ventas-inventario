@@ -15,4 +15,5 @@ urlpatterns = [
     path('ventas/devoluciones/', views.devoluciones, name='devoluciones'),
     path('ventas/devoluciones/<int:venta_id>/', views.devolver_venta, name='devolver_venta'),
     path('ventas/devoluciones/<int:venta_id>/registrar/', views.registrar_devolucion, name='registrar_devolucion'),
+    path('ventas/historial/', views.historial_ventas, name='historial_ventas'),
 ]
