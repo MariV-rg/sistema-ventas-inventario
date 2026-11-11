@@ -1,0 +1,176 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingresar Unidades - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-800 antialiased">
+
+    <!-- Header Principal -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+                    <img src="{% static 'inventario/img/icono.png' %}" alt="Icono" class="w-8 h-8 md:w-10 md:h-10 rounded-md object-contain">
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold tracking-wide leading-tight">Sistema de Ventas</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Gestión e Inventario</p>
+                </div>
+            </div>
+
+            <!-- Perfil / Volver -->
+            <div class="flex items-center gap-3">
+                <a href="{% url 'consultar_inventario' %}" class="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:inline-flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Volver al inventario
+                </a>
+                <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
+                    {{ user.username|first|upper }}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+        <div class="w-full max-w-xl">
+
+            <!-- Card -->
+            <div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6 md:p-10">
+
+                <!-- Cabecera de la sección -->
+                <div class="flex items-center gap-3 mb-8 border-b border-slate-100 pb-5">
+                    <div class="bg-emerald-100 p-3 rounded-xl text-emerald-600 flex-shrink-0">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">
+                            Ingresar Unidades
+                        </h1>
+                        <p class="text-sm text-slate-500 mt-0.5">
+                            Registra la mercancía que llegó de <span class="font-medium text-slate-700">{{ producto.nombre }}</span>
+                        </p>
+                    </div>
+                    <a href="{% url 'consultar_inventario' %}"
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 text-sm font-medium rounded-xl border border-slate-200 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        <span class="hidden sm:inline">Volver</span>
+                    </a>
+                </div>
+
+                <!-- Errores -->
+                {% if errors %}
+                    <div class="mb-6 flex items-start gap-2 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded-md px-4 py-3">
+                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/>
+                        </svg>
+                        <ul class="space-y-1">
+                            {% for error in errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <!-- Datos actuales del producto -->
+                <div class="mb-6 grid grid-cols-2 gap-4 text-sm">
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Stock actual</p>
+                        <p class="text-lg font-bold text-slate-800 mt-0.5">
+                            {{ producto.stock|floatformat:"-3" }}
+                            {% if producto.categoria.es_peso_variable %}
+                                {% if producto.unidad_base == 'KILO' %}kg{% else %}g{% endif %}
+                            {% else %}
+                                und
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Stock mínimo</p>
+                        <p class="text-lg font-bold text-slate-800 mt-0.5">
+                            {{ producto.stock_minimo|floatformat:"-3" }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Formulario -->
+                <form method="POST" class="space-y-6">
+                    {% csrf_token %}
+
+                    <!-- Cantidad -->
+                    <div>
+                        <label for="id_cantidad" class="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-1.5">
+                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Cantidad que ingresa
+                            {% if producto.categoria.es_peso_variable %}
+                                <span class="text-xs font-normal text-slate-500">({% if producto.unidad_base == 'KILO' %}kg{% else %}g{% endif %})</span>
+                            {% else %}
+                                <span class="text-xs font-normal text-slate-500">(unidades)</span>
+                            {% endif %}
+                        </label>
+                        <input
+                            type="number"
+                            name="cantidad"
+                            id="id_cantidad"
+                            value="{{ datos.cantidad }}"
+                            {% if producto.categoria.es_peso_variable %}
+                                step="0.001" min="0.001"
+                            {% else %}
+                                step="1" min="1"
+                            {% endif %}
+                            required
+                            autofocus
+                            placeholder="Ej: 10"
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                        >
+                        <p class="text-xs text-slate-400 mt-1.5">
+                            Esta cantidad se suma al stock actual.
+                        </p>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="pt-4 flex flex-col sm:flex-row items-center gap-3 border-t border-slate-100">
+                        <button type="submit"
+                                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Registrar ingreso
+                        </button>
+
+                        <a href="{% url 'consultar_inventario' %}"
+                           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors border border-slate-200">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm text-slate-500">
+            <p>Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
+
+</body>
+</html>

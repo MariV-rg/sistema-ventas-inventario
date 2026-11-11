@@ -1,0 +1,200 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de ventas - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 antialiased">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-5 flex items-center justify-center gap-4">
+            <div class="bg-white/10 rounded-xl p-2 shadow-inner backdrop-blur-sm">
+                <img src="{% static 'inventario/img/icono.png' %}" alt="Icono inventario" class="w-10 h-10 md:w-12 md:h-12 rounded-lg object-contain">
+            </div>
+            <h1 class="text-xl md:text-2xl lg:text-3xl font-semibold tracking-wide">
+                Sistema de Gestión de Ventas e Inventario
+            </h1>
+        </div>
+    </header>
+
+    <main class="flex-1 container mx-auto px-4 py-8 max-w-6xl">
+
+        <!-- Encabezado -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+                <h2 class="text-2xl md:text-3xl font-bold text-slate-900">Historial de ventas</h2>
+                <p class="text-sm text-slate-500 mt-0.5">Consulta las ventas por día, semana o mes</p>
+            </div>
+            <a href="{% url 'home' %}"
+               class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg transition-all w-fit">
+                Volver
+            </a>
+        </div>
+
+        <!-- Mensajes -->
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                    <div class="flex items-start gap-2 border-l-4 rounded-md px-4 py-3 text-sm bg-red-50 border-red-500 text-red-700">
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Filtros: periodo y fecha -->
+        <section class="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm p-4 mb-6">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
+                <!-- Día / Semana / Mes -->
+                <div class="inline-flex rounded-lg ring-1 ring-slate-200 overflow-hidden w-fit">
+                    {% for clave, nombre in periodos.items %}
+                        <a href="?periodo={{ clave }}&fecha={{ referencia|date:'Y-m-d' }}"
+                           class="px-4 py-2 text-sm font-semibold transition-colors
+                                  {% if clave == periodo %}bg-indigo-600 text-white{% else %}bg-white text-slate-600 hover:bg-slate-50{% endif %}">
+                            {{ nombre }}
+                        </a>
+                    {% endfor %}
+                </div>
+
+                <!-- Anterior / fecha / siguiente -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="?periodo={{ periodo }}&fecha={{ anterior|date:'Y-m-d' }}"
+                       class="inline-flex items-center bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold rounded-lg px-3 py-2 ring-1 ring-slate-200 transition-all"
+                       title="Periodo anterior">
+                        &larr; Anterior
+                    </a>
+
+                    <form method="get" class="flex items-center gap-2">
+                        <input type="hidden" name="periodo" value="{{ periodo }}">
+                        <input type="date" name="fecha" value="{{ referencia|date:'Y-m-d' }}" max="{{ hoy|date:'Y-m-d' }}"
+                               class="border border-slate-300 rounded-lg px-2.5 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                        <button type="submit"
+                                class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm transition-all">
+                            Ver
+                        </button>
+                    </form>
+
+                    <a href="?periodo={{ periodo }}&fecha={{ siguiente|date:'Y-m-d' }}"
+                       class="inline-flex items-center bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold rounded-lg px-3 py-2 ring-1 ring-slate-200 transition-all"
+                       title="Periodo siguiente">
+                        Siguiente &rarr;
+                    </a>
+
+                    <a href="?periodo={{ periodo }}"
+                       class="inline-flex items-center bg-white hover:bg-slate-50 text-indigo-600 text-sm font-semibold rounded-lg px-3 py-2 ring-1 ring-indigo-200 transition-all">
+                        Hoy
+                    </a>
+                </div>
+            </div>
+
+            <p class="mt-4 text-sm text-slate-500">
+                Mostrando:
+                <span class="font-semibold text-slate-800">
+                    {% if periodo == 'dia' %}
+                        {{ inicio|date:"l, d \d\e F \d\e Y" }}
+                    {% elif periodo == 'semana' %}
+                        del {{ inicio|date:"d/m/Y" }} al {{ ultimo_dia|date:"d/m/Y" }}
+                    {% else %}
+                        {{ inicio|date:"F \d\e Y" }}
+                    {% endif %}
+                </span>
+            </p>
+        </section>
+
+        <!-- Resumen del periodo -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div class="bg-white rounded-xl ring-1 ring-slate-200 shadow-sm p-4">
+                <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Ventas</p>
+                <p class="mt-1 text-2xl font-bold text-slate-800">{{ cantidad }}</p>
+            </div>
+            <div class="bg-white rounded-xl ring-1 ring-slate-200 shadow-sm p-4">
+                <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Total vendido</p>
+                <p class="mt-1 text-2xl font-bold text-slate-800">${{ total_vendido|floatformat:"-2g" }}</p>
+            </div>
+            <div class="bg-white rounded-xl ring-1 ring-slate-200 shadow-sm p-4">
+                <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Devoluciones</p>
+                <p class="mt-1 text-2xl font-bold {% if total_devuelto %}text-red-600{% else %}text-slate-400{% endif %}">-${{ total_devuelto|floatformat:"-2g" }}</p>
+            </div>
+            <div class="bg-white rounded-xl ring-1 ring-indigo-200 shadow-sm p-4">
+                <p class="text-xs font-medium uppercase tracking-wide text-indigo-600">Total neto</p>
+                <p class="mt-1 text-2xl font-bold text-indigo-600">${{ total_neto|floatformat:"-2g" }}</p>
+            </div>
+        </div>
+
+        <!-- Lista de transacciones -->
+        <section class="bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 overflow-hidden">
+            {% if filas %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left min-w-[760px]">
+                        <thead class="text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200 bg-slate-50">
+                            <tr>
+                                <th class="py-3 px-4 font-semibold">Venta</th>
+                                <th class="py-3 px-4 font-semibold">Fecha y hora</th>
+                                <th class="py-3 px-4 font-semibold">Productos</th>
+                                <th class="py-3 px-4 font-semibold">Pago</th>
+                                <th class="py-3 px-4 font-semibold text-right">Total</th>
+                                <th class="py-3 px-4 font-semibold text-right">Devuelto</th>
+                                <th class="py-3 px-4 font-semibold text-right">Neto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for f in filas %}
+                                <tr class="align-top hover:bg-slate-50/70 transition-colors">
+                                    <td class="py-3 px-4 font-semibold text-slate-800">#{{ f.venta.id }}</td>
+                                    <td class="py-3 px-4 text-slate-600 whitespace-nowrap">
+                                        {{ f.venta.fecha|date:"d/m/Y" }}
+                                        <span class="block font-semibold text-slate-800">{{ f.venta.fecha|date:"H:i" }}</span>
+                                        <span class="block text-xs text-slate-400">{{ f.venta.vendedor.username }}</span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <ul class="space-y-0.5">
+                                            {% for l in f.lineas %}
+                                                <li class="text-slate-700">
+                                                    {{ l.nombre }}
+                                                    <span class="text-slate-400">&times;</span>
+                                                    <span class="font-medium">{{ l.cantidad|floatformat:"-3" }} {{ l.unidad }}</span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </td>
+                                    <td class="py-3 px-4 text-slate-600">{{ f.venta.get_metodo_pago_display }}</td>
+                                    <td class="py-3 px-4 text-right text-slate-800 whitespace-nowrap">${{ f.venta.total|floatformat:"-2g" }}</td>
+                                    <td class="py-3 px-4 text-right whitespace-nowrap {% if f.devuelto %}text-red-600 font-medium{% else %}text-slate-300{% endif %}">
+                                        {% if f.devuelto %}-${{ f.devuelto|floatformat:"-2g" }}{% else %}&mdash;{% endif %}
+                                    </td>
+                                    <td class="py-3 px-4 text-right font-bold text-slate-800 whitespace-nowrap">${{ f.neto|floatformat:"-2g" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                {# 19B: no hay ventas en el periodo consultado #}
+                <div class="text-center py-12 px-6">
+                    <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 text-slate-400 mb-3">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                    </div>
+                    <p class="font-semibold text-slate-700">No hay registros de ventas en este periodo</p>
+                    <p class="text-sm text-slate-500 mt-1">Prueba con otra fecha o cambia entre día, semana y mes.</p>
+                </div>
+            {% endif %}
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-center py-4 text-sm border-t border-slate-800 mt-8">
+        <div class="container mx-auto px-4">
+            <p class="tracking-wide">Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
+
+</body>
+</html>
