@@ -14,6 +14,7 @@ urlpatterns = [
     path('ventas/cancelar/', views.cancelar_venta, name='cancelar_venta'),
     path('ventas/devoluciones/', views.devoluciones, name='devoluciones'),
     path('ventas/devoluciones/<int:venta_id>/', views.devolver_venta, name='devolver_venta'),
-    path('ventas/devoluciones/<int:venta_id>/registrar/', views.registrar_devolucion, name='registrar_devolucion'),
+    path('ventas/devoluciones/<int:venta_id>/producto/<int:detalle_id>/', views.devolver_producto, name='devolver_producto'),
     path('ventas/historial/', views.historial_ventas, name='historial_ventas'),
+    path('ventas/reporte/', views.reporte_ventas, name='reporte_ventas'),
 ]
