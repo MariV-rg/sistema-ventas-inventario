@@ -1,0 +1,301 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Devolver producto - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-800 antialiased">
+
+    <!-- Header Principal -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+                    <img src="{% static 'inventario/img/icono.png' %}" alt="Icono" class="w-8 h-8 md:w-10 md:h-10 rounded-md object-contain">
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold tracking-wide leading-tight">Sistema de Ventas</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Gestión e Inventario</p>
+                </div>
+            </div>
+
+            <!-- Perfil / Volver -->
+            <div class="flex items-center gap-3">
+                <a href="{% url 'devolver_venta' venta.id %}" class="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:inline-flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Volver a la venta
+                </a>
+                <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
+                    {{ user.username|first|upper }}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-1 container mx-auto px-4 py-8 max-w-4xl">
+
+        <!-- Encabezado de sección -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="flex-shrink-0 w-11 h-11 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4"/>
+                    </svg>
+                </span>
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">Devolver producto</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">
+                        Venta #{{ venta.id }} · {{ venta.fecha|date:"d/m/Y H:i" }} · pagada con {{ venta.get_metodo_pago_display|lower }}
+                    </p>
+                </div>
+            </div>
+
+            <a href="{% url 'devolver_venta' venta.id %}"
+               class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg shadow-sm transition-all w-fit">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Volver
+            </a>
+        </div>
+
+        <!-- Mensajes -->
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                    <div class="flex items-start gap-2 border-l-4 rounded-md px-4 py-3 text-sm
+                        {% if message.tags == 'success' %} bg-green-50 border-green-500 text-green-700
+                        {% elif message.tags == 'warning' %} bg-amber-50 border-amber-500 text-amber-700
+                        {% else %} bg-red-50 border-red-500 text-red-700 {% endif %}">
+                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {% if message.tags == 'success' %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            {% else %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/>
+                            {% endif %}
+                        </svg>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <h3 class="font-semibold text-slate-800">{{ producto.nombre }}</h3>
+                <p class="text-xs text-slate-500 mt-0.5">
+                    Vendido: {{ detalle.cantidad|floatformat:"-3" }} {{ unidad }}
+                    · ${{ detalle.precio_unitario|floatformat:"-2g" }} por {{ unidad }}
+                    · Se puede devolver: <span class="font-semibold text-slate-700">{{ disponible|floatformat:"-3" }} {{ unidad }}</span>
+                </p>
+            </div>
+
+            <form method="post" id="form-devolucion" data-recibe="{% if producto.recibe_cambio %}1{% else %}0{% endif %}" class="px-6 py-6 space-y-7">
+                {% csrf_token %}
+
+                {% if errors %}
+                    <div class="border-l-4 border-red-500 bg-red-50 rounded-md px-4 py-3 text-sm text-red-700">
+                        <p class="font-semibold mb-1">Revisa lo siguiente:</p>
+                        <ul class="list-disc pl-5 space-y-0.5">
+                            {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <!-- 1. Cuánto se devuelve -->
+                <div>
+                    <label for="id_cantidad" class="block text-sm font-semibold text-slate-700 mb-1.5">1. ¿Cuánto se devuelve?</label>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <input type="number" name="cantidad" id="id_cantidad" step="any" min="0" value="{{ datos.cantidad }}"
+                               placeholder="Máx. {{ disponible|floatformat:'-3' }}"
+                               class="w-40 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                        {% if es_peso %}
+                            <select name="unidad" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                                <option value="kg" {% if datos.unidad == 'kg' or not datos.unidad and unidad == 'kg' %}selected{% endif %}>Kilos</option>
+                                <option value="g" {% if datos.unidad == 'g' or not datos.unidad and unidad == 'g' %}selected{% endif %}>Gramos</option>
+                            </select>
+                        {% else %}
+                            <span class="text-sm font-medium text-slate-500">{{ unidad }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 2. Por qué se devuelve -->
+                <div class="space-y-3">
+                    <div>
+                        <label for="id_motivo" class="block text-sm font-semibold text-slate-700 mb-1.5">2. ¿Por qué se devuelve?</label>
+                        <select name="motivo" id="id_motivo" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                            <option value="">Elige un motivo...</option>
+                            {% for valor, etiqueta in motivos %}
+                                <option value="{{ valor }}" {% if datos.motivo == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div id="bloque-otro" class="hidden rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
+                        <p class="text-sm font-semibold text-slate-700 mb-2">¿La unidad se puede volver a vender?</p>
+                        <div class="flex gap-6 text-sm text-slate-700">
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="reutilizable" value="si" {% if datos.reutilizable == 'si' %}checked{% endif %} class="text-indigo-600 focus:ring-indigo-500"> Sí
+                            </label>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="reutilizable" value="no" {% if datos.reutilizable == 'no' %}checked{% endif %} class="text-indigo-600 focus:ring-indigo-500"> No
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="id_detalle_motivo" class="block text-xs font-medium text-slate-500 mb-1">
+                            Explicación <span class="text-slate-400">(obligatoria si el motivo es "Otro")</span>
+                        </label>
+                        <textarea name="detalle_motivo" id="id_detalle_motivo" rows="2" maxlength="300"
+                                  placeholder="Ej: la leche estaba cortada, el cliente la abrió en la casa"
+                                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">{{ datos.detalle_motivo }}</textarea>
+                    </div>
+
+                    <div class="rounded-xl bg-indigo-50 ring-1 ring-indigo-200 px-4 py-3 text-sm text-indigo-800">
+                        <span class="font-semibold">¿Qué pasa con la unidad?</span>
+                        <span id="destino-texto">Elige un motivo para ver qué pasará con la unidad.</span>
+                    </div>
+                </div>
+
+                <!-- 3. Qué se hace con el cliente -->
+                <div class="space-y-3">
+                    <p class="block text-sm font-semibold text-slate-700 mb-1.5 mb-0">3. ¿Qué se hace con el cliente?</p>
+                    <div class="grid sm:grid-cols-2 gap-3">
+                        <label class="flex items-start gap-3 p-4 rounded-xl ring-1 ring-slate-200 bg-white hover:bg-slate-50 cursor-pointer">
+                            <input type="radio" name="resolucion" value="REEMBOLSO" {% if datos.resolucion == 'REEMBOLSO' %}checked{% endif %} class="mt-1 text-indigo-600 focus:ring-indigo-500">
+                            <span>
+                                <span class="block text-sm font-semibold text-slate-800">Devolver el dinero</span>
+                                <span class="block text-xs text-slate-500">Baja el total vendido</span>
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 p-4 rounded-xl ring-1 ring-slate-200 bg-white hover:bg-slate-50 cursor-pointer">
+                            <input type="radio" name="resolucion" value="CAMBIO" {% if datos.resolucion == 'CAMBIO' %}checked{% endif %} class="mt-1 text-indigo-600 focus:ring-indigo-500">
+                            <span>
+                                <span class="block text-sm font-semibold text-slate-800">Cambiarlo por otro producto</span>
+                                <span class="block text-xs text-slate-500">El dinero no se mueve</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Si se devuelve el dinero -->
+                    <div id="bloque-reembolso" class="hidden rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
+                        <p class="text-sm font-semibold text-slate-700 mb-2">¿Cómo se devolvió el dinero?</p>
+                        <div class="flex gap-6 text-sm text-slate-700">
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="forma_reembolso" value="EFECTIVO" {% if datos.forma_reembolso == 'EFECTIVO' %}checked{% endif %} class="text-indigo-600 focus:ring-indigo-500"> En efectivo
+                            </label>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="forma_reembolso" value="TRANSFERENCIA" {% if datos.forma_reembolso == 'TRANSFERENCIA' %}checked{% endif %} class="text-indigo-600 focus:ring-indigo-500"> Por transferencia
+                            </label>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">
+                            Si se devuelve en efectivo, ese dinero sale de tu caja, aunque el cliente haya pagado por transferencia.
+                            Según el sistema, en tu caja hay <span class="font-semibold">${{ efectivo_en_caja|floatformat:"-2g" }}</span>.
+                        </p>
+                    </div>
+
+                    <!-- Si se cambia por otro producto -->
+                    <div id="bloque-cambio" class="hidden rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 space-y-3">
+                        <div>
+                            <label for="id_producto_entregado" class="block text-sm font-semibold text-slate-700 mb-1.5">¿Qué producto se entrega?</label>
+                            <select name="producto_entregado" id="id_producto_entregado" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                                <option value="">Elige un producto...</option>
+                                {% for p in productos_cambio %}
+                                    <option value="{{ p.id }}" data-peso="{% if p.es_peso %}1{% endif %}" data-unidad="{{ p.unidad }}"
+                                            {% if datos.producto_entregado == p.id|stringformat:'s' %}selected{% endif %}>
+                                        {{ p.nombre }} (hay {{ p.stock|floatformat:"-3" }} {{ p.unidad }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input type="number" name="cantidad_entregada" step="any" min="0" value="{{ datos.cantidad_entregada }}"
+                                   placeholder="Cantidad" class="w-40 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                            <select name="unidad_entregada" id="id_unidad_entregada" class="hidden bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                                <option value="kg" {% if datos.unidad_entregada == 'kg' %}selected{% endif %}>Kilos</option>
+                                <option value="g" {% if datos.unidad_entregada == 'g' %}selected{% endif %}>Gramos</option>
+                            </select>
+                        </div>
+                        <p class="text-xs text-slate-500">Lo que se entrega sale del inventario. No se ajusta la diferencia de precio.</p>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex flex-col sm:flex-row items-center gap-3 border-t border-slate-100">
+                    <button type="submit"
+                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all">
+                        Registrar devolución
+                    </button>
+                    <a href="{% url 'devolver_venta' venta.id %}"
+                       class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 bg-white text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors border border-slate-200">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </section>
+
+        <script>
+            const form = document.getElementById('form-devolucion');
+            const recibe = form.dataset.recibe === '1';
+            const motivo = document.getElementById('id_motivo');
+            const bloqueOtro = document.getElementById('bloque-otro');
+            const destinoTexto = document.getElementById('destino-texto');
+            const bloqueReembolso = document.getElementById('bloque-reembolso');
+            const bloqueCambio = document.getElementById('bloque-cambio');
+            const selEntregado = document.getElementById('id_producto_entregado');
+            const selUnidadEntregada = document.getElementById('id_unidad_entregada');
+
+            function actualizar() {
+                const m = motivo.value;
+                const reut = form.querySelector('input[name="reutilizable"]:checked');
+                bloqueOtro.classList.toggle('hidden', m !== 'OTRO');
+
+                let texto;
+                if (!m) {
+                    texto = 'Elige un motivo para ver qué pasará con la unidad.';
+                } else if (m === 'DIFERENTE' || (m === 'OTRO' && reut && reut.value === 'si')) {
+                    texto = 'La unidad volverá al inventario.';
+                } else if (m === 'OTRO' && !reut) {
+                    texto = 'Indica si la unidad se puede volver a vender.';
+                } else if (recibe) {
+                    texto = 'No se puede vender: quedará para cambio con el proveedor.';
+                } else {
+                    texto = 'No se puede vender y este producto no tiene cambio: se registrará como pérdida.';
+                }
+                destinoTexto.textContent = texto;
+
+                const res = form.querySelector('input[name="resolucion"]:checked');
+                bloqueReembolso.classList.toggle('hidden', !res || res.value !== 'REEMBOLSO');
+                bloqueCambio.classList.toggle('hidden', !res || res.value !== 'CAMBIO');
+
+                const opcion = selEntregado.options[selEntregado.selectedIndex];
+                selUnidadEntregada.classList.toggle('hidden', !(opcion && opcion.dataset.peso === '1'));
+            }
+
+            form.addEventListener('change', actualizar);
+            selEntregado.addEventListener('change', () => {
+                const opcion = selEntregado.options[selEntregado.selectedIndex];
+                if (opcion && opcion.dataset.peso === '1') selUnidadEntregada.value = opcion.dataset.unidad;
+            });
+            actualizar();
+        </script>
+
+    </main>
+
+    <!-- Footer unificado -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm text-slate-500">
+            <p>Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
+
+</body>
+</html>

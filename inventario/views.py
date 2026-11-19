@@ -41,6 +41,7 @@ def validar_producto(post, excluir_id=None):
     precio = post.get('precio', '')
     unidad_base = post.get('unidad_base', '')
     stock_minimo = post.get('stock_minimo', '') or '0'   # 5F: si se deja vacío, queda en 0
+    recibe_cambio = post.get('recibe_cambio') == 'on'    # HU17: casilla "el proveedor recibe cambios"
 
     # 5B: campos obligatorios
     if not nombre:
@@ -81,6 +82,7 @@ def validar_producto(post, excluir_id=None):
         'precio': precio_dec,
         'unidad_base': unidad_base,
         'stock_minimo': stock_dec,
+        'recibe_cambio': recibe_cambio,
     }
     return errors, limpios
 
@@ -121,6 +123,7 @@ def registrar_producto(request):
                 precio=limpios['precio'],
                 unidad_base=limpios['unidad_base'],
                 stock_minimo=limpios['stock_minimo'],
+                recibe_cambio=limpios['recibe_cambio'],
             )
             messages.success(request, f'Producto "{producto.nombre}" registrado correctamente.')
             return redirect('registrar_producto')
@@ -147,6 +150,7 @@ def editar_producto(request, id):
         'precio': format(producto.precio, 'f'),
         'unidad_base': producto.unidad_base,
         'stock_minimo': format(producto.stock_minimo.normalize(), 'f'),
+        'recibe_cambio': producto.recibe_cambio,
     }
 
     if request.method == 'POST':
@@ -164,6 +168,7 @@ def editar_producto(request, id):
             producto.precio = limpios['precio']
             producto.unidad_base = limpios['unidad_base']
             producto.stock_minimo = limpios['stock_minimo']
+            producto.recibe_cambio = limpios['recibe_cambio']
             producto.save()
 
             messages.success(request, f'Producto "{producto.nombre}" actualizado correctamente.')

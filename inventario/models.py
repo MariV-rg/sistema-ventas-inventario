@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 
 class Categoria(models.Model):
@@ -36,17 +37,27 @@ class Producto(models.Model):
         (UNIDAD_GRAMO, 'Gramo'),
     ]
 
-    nombre = models.CharField(max_length=100, unique=True)          # 5C: sin duplicados
+    nombre = models.CharField(max_length=100)                       # 5C: sin duplicados entre los activos (ver Meta)
     categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, related_name='productos')
     precio = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     unidad_base = models.CharField(max_length=10, choices=UNIDAD_BASE_CHOICES, blank=True)  # 5D / 5E
     stock = models.DecimalField(max_digits=10, decimal_places=3, default=0, validators=[MinValueValidator(0)])  # lo usan HU9-HU11
     stock_minimo = models.DecimalField(max_digits=10, decimal_places=3, default=0, validators=[MinValueValidator(0)])  # 5F
     activo = models.BooleanField(default=True)                      # HU7: "eliminar" = poner activo=False
+    # HU17: si el proveedor recibe cambios cuando el producto llega vencido o defectuoso
+    recibe_cambio = models.BooleanField(
+        default=False,
+        verbose_name='¿El proveedor recibe cambios?',
+        help_text='Márcalo en productos que el proveedor cambia si llegan vencidos o defectuosos (ej. yogures).',
+    )
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['nombre']
+        constraints = [
+            # el nombre no se repite entre los productos activos (el de uno eliminado queda libre)
+            models.UniqueConstraint(fields=['nombre'], condition=Q(activo=True), name='producto_nombre_unico_entre_activos'),
+        ]
 
     def clean(self):
         if not self.categoria_id:

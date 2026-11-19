@@ -186,6 +186,26 @@
                         >
                     </div>
 
+                    <!-- HU17: ¿el proveedor recibe cambios? -->
+                    <div>
+                        <label for="id_recibe_cambio" class="flex items-start gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
+                            <input
+                                type="checkbox"
+                                name="recibe_cambio"
+                                id="id_recibe_cambio"
+                                {% if datos.recibe_cambio %}checked{% endif %}
+                                class="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            >
+                            <span>
+                                <span class="block text-sm font-semibold text-slate-700">El proveedor recibe cambios</span>
+                                <span class="block text-xs text-slate-400 mt-0.5">
+                                    Márcalo en productos que el proveedor cambia si llegan vencidos o defectuosos (por ejemplo, los yogures).
+                                    Si no lo marcas, una devolución por vencido o daño se registra como pérdida.
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+
                     <!-- Botones -->
                     <div class="pt-4 flex flex-col sm:flex-row items-center gap-3 border-t border-slate-100">
                         <button type="submit"
