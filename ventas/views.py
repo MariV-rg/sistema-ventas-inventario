@@ -5,6 +5,8 @@ from functools import wraps
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Sum
+from django.db.models.functions import TruncMonth
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
@@ -906,4 +908,115 @@ def reporte_ventas(request):
         'mas_vendido': mas_vendido,
         'menos_vendido': menos_vendido,
         'metodos': metodos,
+    })
+
+
+# ---------------------------------------------------------------
+# HU21: eliminar historial de ventas antiguo (solo administrador)
+# ---------------------------------------------------------------
+
+def rango_del_mes(anio, mes):
+    """Devuelve (primer día, primer día del mes siguiente, y esos dos días como fecha y hora con zona)."""
+    inicio = date(anio, mes, 1)
+    _, fin = rango_del_periodo('mes', inicio)
+    zona = timezone.get_current_timezone()
+    return inicio, fin, datetime.combine(inicio, time.min, tzinfo=zona), datetime.combine(fin, time.min, tzinfo=zona)
+
+
+def motivo_de_bloqueo(inicio, desde, hasta):
+    """
+    21D: dice por qué NO se puede eliminar ese mes, o devuelve None si se puede.
+    Se protege lo que todavía está en uso: el mes actual (o uno futuro) y cualquier venta
+    o devolución que pertenezca a una caja que sigue abierta, porque su efectivo esperado
+    se calcula con ellas.
+    """
+    if inicio >= timezone.localdate().replace(day=1):
+        return 'Es el mes actual (o uno futuro) y todavía está en uso.'
+    if Venta.objects.filter(fecha__gte=desde, fecha__lt=hasta, caja__abierta=True).exists():
+        return 'Tiene ventas de una caja que sigue abierta.'
+    if Devolucion.objects.filter(detalle__venta__fecha__gte=desde, detalle__venta__fecha__lt=hasta,
+                                 caja__abierta=True).exists():
+        return 'Tiene devoluciones registradas en una caja que sigue abierta.'
+    return None
+
+
+def resumen_del_mes(desde, hasta):
+    """Lo que se eliminaría de ese mes, para mostrarlo antes de confirmar."""
+    ventas = Venta.objects.filter(fecha__gte=desde, fecha__lt=hasta).aggregate(n=Count('id'), suma=Sum('total'))
+    return {
+        'ventas': ventas['n'],
+        'total': ventas['suma'] or Decimal('0'),
+        'lineas': DetalleVenta.objects.filter(venta__fecha__gte=desde, venta__fecha__lt=hasta).count(),
+        'devoluciones': Devolucion.objects.filter(detalle__venta__fecha__gte=desde,
+                                                  detalle__venta__fecha__lt=hasta).count(),
+    }
+
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def eliminar_historial(request):
+    # los meses que tienen ventas, del más reciente al más antiguo
+    filas = (Venta.objects.annotate(mes=TruncMonth('fecha')).order_by()
+             .values('mes').annotate(n=Count('id'), suma=Sum('total')).order_by('-mes'))
+    meses = []
+    for fila in filas:
+        inicio = fila['mes'].date()
+        _, _, desde, hasta = rango_del_mes(inicio.year, inicio.month)
+        meses.append({
+            'inicio': inicio,
+            'ventas': fila['n'],
+            'total': fila['suma'],
+            'bloqueo': motivo_de_bloqueo(inicio, desde, hasta),
+        })
+    return render(request, 'eliminar_historial.html', {'meses': meses})
+
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def confirmar_eliminar_historial(request, anio, mes):
+    if not (2000 <= anio <= 2100 and 1 <= mes <= 12):
+        raise Http404
+    inicio, fin, desde, hasta = rango_del_mes(anio, mes)
+    nombre_mes = formats.date_format(inicio, 'F \\d\\e Y')
+
+    bloqueo = motivo_de_bloqueo(inicio, desde, hasta)
+    if bloqueo:
+        messages.error(request, f'No se puede eliminar el historial de {nombre_mes}: {bloqueo}')
+        return redirect('eliminar_historial')
+
+    resumen = resumen_del_mes(desde, hasta)
+    if resumen['ventas'] == 0:
+        messages.warning(request, f'{nombre_mes.capitalize()} no tiene ventas para eliminar.')
+        return redirect('eliminar_historial')
+
+    if request.method == 'POST':
+        # 21C: solo se elimina si se contestó "Sí"; con cualquier otra respuesta no se toca nada
+        if request.POST.get('confirmacion') != 'si':
+            messages.warning(request, 'No se eliminó nada.')
+            return redirect('eliminar_historial')
+
+        # 21B: las ventas desaparecen, así que dejan de verse en el historial y en los reportes
+        with transaction.atomic():
+            bloqueo = motivo_de_bloqueo(inicio, desde, hasta)     # se revisa otra vez, por si cambió
+            if bloqueo:
+                messages.error(request, f'No se puede eliminar el historial de {nombre_mes}: {bloqueo}')
+                return redirect('eliminar_historial')
+            resumen = resumen_del_mes(desde, hasta)
+            # el orden importa: las devoluciones protegen a las líneas de venta, así que van primero.
+            # Al borrar las ventas se borran sus líneas. El inventario y las cajas no se tocan.
+            Devolucion.objects.filter(detalle__venta__fecha__gte=desde, detalle__venta__fecha__lt=hasta).delete()
+            Venta.objects.filter(fecha__gte=desde, fecha__lt=hasta).delete()
+
+        messages.success(
+            request,
+            f'Se eliminó el historial de {nombre_mes}: {resumen["ventas"]} venta{"s" if resumen["ventas"] != 1 else ""}, '
+            f'{resumen["lineas"]} línea{"s" if resumen["lineas"] != 1 else ""} de venta y '
+            f'{resumen["devoluciones"]} devolución{"es" if resumen["devoluciones"] != 1 else ""}. '
+            f'Los cierres de caja se conservaron.'
+        )
+        return redirect('eliminar_historial')
+
+    return render(request, 'confirmar_eliminar_historial.html', {
+        'inicio': inicio,
+        'anio': anio,
+        'mes': mes,
+        'resumen': resumen,
     })
