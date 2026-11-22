@@ -18,7 +18,8 @@ class EliminarHistorialTests(TestCase):
         self.vendedor = User.objects.create_user('vend', password='Tienda-Segura-2026')
         Perfil.objects.create(usuario=self.vendedor).roles.set([Rol.objects.get(nombre=Rol.VENDEDOR)])
 
-        categoria = Categoria.objects.create(nombre='Aseo')
+        # las categorías iniciales ya las crea una migración, así que se usa la que existe
+        categoria, _ = Categoria.objects.get_or_create(nombre='Aseo')
         self.producto = Producto.objects.create(
             categoria=categoria, nombre='Jabón', precio=Decimal('2000'), stock=Decimal('10'))
 
