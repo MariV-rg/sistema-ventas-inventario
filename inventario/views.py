@@ -1,8 +1,9 @@
+import unicodedata
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import F
+from django.db.models import Count, F, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import formats
 from django.views.decorators.http import require_POST
@@ -269,3 +270,102 @@ def ingresar_unidades(request, id):
         'errors': errors,
         'datos': datos,
     })
+
+
+# ---------------------------------------------------------------
+# HU23: gestionar categorías (solo administrador)
+# ---------------------------------------------------------------
+
+def normalizar_nombre(texto):
+    """Para comparar nombres sin importar mayúsculas ni tildes: 'Frutería' = 'FRUTERIA'."""
+    sin_tildes = unicodedata.normalize('NFD', texto)
+    return ''.join(c for c in sin_tildes if unicodedata.category(c) != 'Mn').casefold().strip()
+
+
+def validar_categoria(post, excluir_id=None):
+    """Devuelve (lista de errores, datos limpios)."""
+    errors = []
+    nombre = ' '.join(post.get('nombre', '').split())      # quita los espacios de más
+    if not nombre:
+        errors.append('El nombre es obligatorio.')                                    # 23C
+    elif len(nombre) > 50:
+        errors.append('El nombre no puede tener más de 50 caracteres.')
+    else:
+        for otra in Categoria.objects.exclude(id=excluir_id):
+            if normalizar_nombre(otra.nombre) == normalizar_nombre(nombre):
+                errors.append(f'Ya existe una categoría llamada "{otra.nombre}".')    # 23C
+                break
+    return errors, {'nombre': nombre, 'es_peso_variable': post.get('es_peso_variable') == 'on'}
+
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def lista_categorias(request):
+    # 23A: cada categoría con su cantidad de productos y si se vende por peso
+    categorias = list(Categoria.objects.annotate(
+        total=Count('productos'),
+        activos=Count('productos', filter=Q(productos__activo=True)),
+    ))
+    for categoria in categorias:
+        categoria.eliminados = categoria.total - categoria.activos
+    return render(request, 'categorias_lista.html', {'categorias': categorias})
+
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def crear_categoria(request):
+    errors = []
+    datos = {}
+    if request.method == 'POST':
+        datos = request.POST
+        errors, limpios = validar_categoria(request.POST)
+        if not errors:
+            Categoria.objects.create(**limpios)                                         # 23B
+            messages.success(request, f'Categoría "{limpios["nombre"]}" creada.')
+            return redirect('lista_categorias')
+    return render(request, 'categoria_form.html', {
+        'modo': 'crear', 'categoria': None, 'tiene_productos': False, 'errors': errors, 'datos': datos,
+    })
+
+
+@rol_requerido(Rol.ADMINISTRADOR)
+def editar_categoria(request, id):
+    categoria = get_object_or_404(Categoria, id=id)
+    tiene_productos = categoria.productos.exists()
+    errors = []
+    datos = {'nombre': categoria.nombre, 'es_peso_variable': categoria.es_peso_variable}
+
+    if request.method == 'POST':
+        datos = request.POST
+        errors, limpios = validar_categoria(request.POST, excluir_id=categoria.id)
+        # 23E: cambiar si se vende por peso cambiaría cómo se leen las cantidades de sus productos
+        if tiene_productos and limpios['es_peso_variable'] != categoria.es_peso_variable:
+            errors.append('No puedes cambiar si se vende por peso: la categoría ya tiene productos y '
+                          'cambiaría cómo se leen sus cantidades.')
+        if not errors:
+            categoria.nombre = limpios['nombre']                                        # 23D
+            categoria.es_peso_variable = limpios['es_peso_variable']
+            categoria.save()
+            messages.success(request, f'Categoría "{categoria.nombre}" actualizada.')
+            return redirect('lista_categorias')
+
+    return render(request, 'categoria_form.html', {
+        'modo': 'editar', 'categoria': categoria, 'tiene_productos': tiene_productos,
+        'errors': errors, 'datos': datos,
+    })
+
+
+@rol_requerido(Rol.ADMINISTRADOR)
+@require_POST
+def eliminar_categoria(request, id):
+    categoria = get_object_or_404(Categoria, id=id)
+    total = categoria.productos.count()
+    if total:                                                                           # 23F
+        mensaje = (f'No se puede eliminar "{categoria.nombre}" porque tiene {total} '
+                   f'producto{"s" if total != 1 else ""} asociado{"s" if total != 1 else ""}.')
+        if categoria.productos.filter(activo=False).exists():
+            mensaje += ' Algunos ya están eliminados, pero se conservan por su historial de ventas.'
+        messages.error(request, mensaje)
+    else:
+        nombre = categoria.nombre
+        categoria.delete()
+        messages.success(request, f'Categoría "{nombre}" eliminada.')
+    return redirect('lista_categorias')

@@ -10,4 +10,8 @@ urlpatterns = [
     path('inventario/', views.consultar_inventario, name='consultar_inventario'),
     path('inventario/alertas/', views.alertas_stock, name='alertas_stock'),
     path('inventario/<int:id>/ingresar/', views.ingresar_unidades, name='ingresar_unidades'),
+    path('categorias/', views.lista_categorias, name='lista_categorias'),
+    path('categorias/nueva/', views.crear_categoria, name='crear_categoria'),
+    path('categorias/<int:id>/editar/', views.editar_categoria, name='editar_categoria'),
+    path('categorias/<int:id>/eliminar/', views.eliminar_categoria, name='eliminar_categoria'),
 ]
