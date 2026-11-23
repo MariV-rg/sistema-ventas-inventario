@@ -121,18 +121,6 @@
                             <dt class="text-slate-500">Monto inicial</dt>
                             <dd class="font-medium text-slate-800">${{ caja.monto_inicial|floatformat:"-2g" }}</dd>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <dt class="text-slate-500">Ventas en efectivo</dt>
-                            <dd class="font-medium text-green-600">+ ${{ caja.ventas_en_efectivo|floatformat:"-2g" }}</dd>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <dt class="text-slate-500">Devoluciones en efectivo</dt>
-                            <dd class="font-medium text-red-600">- ${{ caja.devoluciones_en_efectivo|floatformat:"-2g" }}</dd>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <dt class="text-slate-500">Ventas por Nequi, Daviplata u otros</dt>
-                            <dd class="font-medium text-slate-400">${{ caja.ventas_por_otros_medios|floatformat:"-2g" }}</dd>
-                        </div>
                         <div class="flex justify-between items-center border-t border-slate-200 pt-3 mt-1">
                             <dt class="font-semibold text-slate-700">Efectivo esperado</dt>
                             <dd class="font-bold text-slate-800">${{ caja.monto_esperado|floatformat:"-2g" }}</dd>
@@ -142,6 +130,7 @@
                             <dd class="font-bold text-indigo-600 text-lg">${{ caja.monto_final|floatformat:"-2g" }}</dd>
                         </div>
                     </dl>
+                    <p class="text-xs text-slate-400 text-center">Estos montos son los que quedaron guardados al cerrar la caja.</p>
 
                     <!-- Botones -->
                     <div class="flex flex-col sm:flex-row gap-3 pt-2">
