@@ -1,0 +1,144 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliminar historial - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-800 antialiased">
+
+    <!-- Header Principal -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+                    <img src="{% static 'inventario/img/icono.png' %}" alt="Icono" class="w-8 h-8 md:w-10 md:h-10 rounded-md object-contain">
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold tracking-wide leading-tight">Sistema de Ventas</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Gestión e Inventario</p>
+                </div>
+            </div>
+
+            <!-- Perfil / Volver -->
+            <div class="flex items-center gap-3">
+                <a href="{% url 'eliminar_historial' %}" class="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:inline-flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Volver al historial
+                </a>
+                <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
+                    {{ user.username|first|upper }}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-1 container mx-auto px-4 py-8 max-w-4xl">
+
+        <!-- Encabezado de sección -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="flex-shrink-0 w-11 h-11 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </span>
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">¿Eliminar el historial de {{ inicio|date:"F \d\e Y" }}?</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Confirma para continuar</p>
+                </div>
+            </div>
+
+            <a href="{% url 'eliminar_historial' %}"
+               class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg shadow-sm transition-all w-fit">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Volver
+            </a>
+        </div>
+
+        <!-- Mensajes -->
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                    <div class="flex items-start gap-2 border-l-4 rounded-md px-4 py-3 text-sm
+                        {% if message.tags == 'success' %} bg-green-50 border-green-500 text-green-700
+                        {% elif message.tags == 'warning' %} bg-amber-50 border-amber-500 text-amber-700
+                        {% else %} bg-red-50 border-red-500 text-red-700 {% endif %}">
+                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {% if message.tags == 'success' %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            {% else %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/>
+                            {% endif %}
+                        </svg>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <h3 class="font-semibold text-slate-800">Esto es lo que se va a eliminar</h3>
+            </div>
+
+            <dl class="px-6 py-5 space-y-3 text-sm">
+                <div class="flex justify-between items-center">
+                    <dt class="text-slate-500">Ventas</dt>
+                    <dd class="font-bold text-slate-800">{{ resumen.ventas }}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-slate-500">Total vendido</dt>
+                    <dd class="font-bold text-slate-800">${{ resumen.total|floatformat:"-2g" }}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-slate-500">Líneas de venta (productos vendidos)</dt>
+                    <dd class="font-bold text-slate-800">{{ resumen.lineas }}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-slate-500">Devoluciones</dt>
+                    <dd class="font-bold text-slate-800">{{ resumen.devoluciones }}</dd>
+                </div>
+            </dl>
+
+            <div class="mx-6 mb-5 rounded-xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-700">
+                <p class="font-semibold">Esta acción no se puede deshacer.</p>
+                <p class="mt-0.5">Las ventas dejarán de aparecer en el historial y en los reportes. El inventario y los cierres de caja no se tocan.</p>
+            </div>
+
+            <form method="post" class="px-6 pb-6">
+                {% csrf_token %}
+                <input type="hidden" name="confirmacion" value="si">
+                <p class="text-sm font-semibold text-slate-700 mb-3">¿Seguro que quieres eliminarlo?</p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button type="submit"
+                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all">
+                        Sí, eliminar
+                    </button>
+                    <a href="{% url 'eliminar_historial' %}"
+                       class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 bg-white text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors border border-slate-200">
+                        No, volver
+                    </a>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+    <!-- Footer unificado -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm text-slate-500">
+            <p>Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
+
+</body>
+</html>

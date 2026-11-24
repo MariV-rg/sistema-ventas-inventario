@@ -1,0 +1,204 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recepción - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-800 antialiased">
+
+    <!-- Header Principal -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+                    <img src="{% static 'inventario/img/icono.png' %}" alt="Icono" class="w-8 h-8 md:w-10 md:h-10 rounded-md object-contain">
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold tracking-wide leading-tight">Sistema de Ventas</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Gestión e Inventario</p>
+                </div>
+            </div>
+
+            <!-- Perfil / Volver -->
+            <div class="flex items-center gap-3">
+                <a href="{% url 'lista_recepciones' %}" class="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:inline-flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Volver a recepciones
+                </a>
+                <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
+                    {{ user.username|first|upper }}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-1 container mx-auto px-4 py-8 max-w-4xl">
+
+        <!-- Encabezado de sección -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="flex-shrink-0 w-11 h-11 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
+                </span>
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">Recepción de mercancía</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Productos de la factura y su estado</p>
+                </div>
+            </div>
+
+            <a href="{% url 'lista_recepciones' %}"
+               class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg shadow-sm transition-all w-fit">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Volver
+            </a>
+        </div>
+
+        <!-- Mensajes -->
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                    <div class="flex items-start gap-2 border-l-4 rounded-md px-4 py-3 text-sm
+                        {% if message.tags == 'success' %} bg-green-50 border-green-500 text-green-700
+                        {% elif message.tags == 'warning' %} bg-amber-50 border-amber-500 text-amber-700
+                        {% else %} bg-red-50 border-red-500 text-red-700 {% endif %}">
+                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {% if message.tags == 'success' %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            {% else %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/>
+                            {% endif %}
+                        </svg>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <h3 class="font-semibold text-slate-800">{{ recepcion.proveedor }} · factura {{ recepcion.numero_factura }}</h3>
+                <p class="text-xs text-slate-500 mt-0.5">
+                    {{ recepcion.fecha|date:"d/m/Y" }} · registrada por {{ recepcion.registrada_por.username }}
+                </p>
+            </div>
+            <div class="px-6 py-4">
+                <div class="flex items-center justify-between text-sm">
+                    <span class="font-semibold text-slate-700">{{ ingresadas }} de {{ total }} producto{{ total|pluralize }} ingresado{{ ingresadas|pluralize }}</span>
+                    {% if completa %}
+                        <span class="text-xs font-semibold text-green-700 bg-green-50 ring-1 ring-green-200 px-2.5 py-1 rounded-full">Recepción completa</span>
+                    {% elif total %}
+                        <span class="text-xs font-semibold text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-2.5 py-1 rounded-full">Faltan {{ pendientes }}</span>
+                    {% endif %}
+                </div>
+                <div class="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div class="h-full rounded-full {% if completa %}bg-green-500{% else %}bg-amber-500{% endif %}" style="width: {{ porcentaje }}%"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mt-6 bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <h3 class="font-semibold text-slate-800">Productos de la factura</h3>
+            </div>
+
+            {% if filas %}
+                <ul class="divide-y divide-slate-100">
+                    {% for f in filas %}
+                        <li class="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div>
+                                <p class="font-semibold text-slate-800">{{ f.linea.producto.nombre }}</p>
+                                <p class="text-xs text-slate-500">{{ f.linea.cantidad|floatformat:"-3" }} {{ f.unidad }}</p>
+                                {% if f.linea.ingresada %}
+                                    <p class="text-xs text-green-700 mt-0.5">
+                                        Ingresada por {{ f.linea.ingresada_por.username }} el {{ f.linea.ingresada_en|date:"d/m/Y H:i" }}
+                                    </p>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center gap-2">
+                                {% if f.linea.ingresada %}
+                                    <span class="text-xs font-semibold text-green-700 bg-green-50 ring-1 ring-green-200 px-2.5 py-1 rounded-full">✓ Ingresada</span>
+                                {% else %}
+                                    <span class="text-xs font-semibold text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-2.5 py-1 rounded-full">Pendiente</span>
+                                    <form method="post" action="{% url 'ingresar_linea_recepcion' recepcion.id f.linea.id %}"
+                                          onsubmit="return confirm('¿Ingresar {{ f.linea.cantidad|floatformat:"-3" }} {{ f.unidad }} de {{ f.linea.producto.nombre|escapejs }} al inventario?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all">Ingresar</button>
+                                    </form>
+                                    <form method="post" action="{% url 'quitar_linea_recepcion' recepcion.id f.linea.id %}"
+                                          onsubmit="return confirm('¿Quitar este producto de la factura?');">
+                                        {% csrf_token %}
+                                        <button type="submit"
+                                                class="inline-flex items-center bg-white hover:bg-rose-50 text-rose-600 text-sm font-semibold rounded-xl px-4 py-2.5 ring-1 ring-rose-200 transition-colors">
+                                            Quitar
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="text-center py-10 px-6">
+                    <p class="font-semibold text-slate-700">Todavía no hay productos en esta factura</p>
+                    <p class="text-sm text-slate-500 mt-1">Agrégalos con el formulario de abajo.</p>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="mt-6 bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <h3 class="font-semibold text-slate-800">Agregar un producto de la factura</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Cada producto se agrega una sola vez por factura. Queda pendiente hasta que lo ingreses.</p>
+            </div>
+            {% if disponibles %}
+                <form method="post" action="{% url 'agregar_linea_recepcion' recepcion.id %}" class="px-6 py-5 flex flex-col sm:flex-row sm:items-end gap-3">
+                    {% csrf_token %}
+                    <div class="flex-1">
+                        <label for="id_producto" class="block text-sm font-semibold text-slate-700 mb-1.5">Producto</label>
+                        <select name="producto" id="id_producto" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                            <option value="">Elige un producto...</option>
+                            {% for p in disponibles %}
+                                <option value="{{ p.id }}" data-unidad="{{ p.unidad }}">{{ p.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="sm:w-40">
+                        <label for="id_cantidad" class="block text-sm font-semibold text-slate-700 mb-1.5">Cantidad <span id="unidad-texto" class="font-normal text-slate-400"></span></label>
+                        <input type="number" name="cantidad" id="id_cantidad" step="any" min="0" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                    </div>
+                    <button type="submit" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all">Agregar</button>
+                </form>
+                <script>
+                    const sel = document.getElementById('id_producto');
+                    sel.addEventListener('change', () => {
+                        const op = sel.options[sel.selectedIndex];
+                        document.getElementById('unidad-texto').textContent = op && op.dataset.unidad ? '(' + op.dataset.unidad + ')' : '';
+                    });
+                </script>
+            {% else %}
+                <p class="px-6 py-5 text-sm text-slate-500">Todos los productos activos ya están en esta factura.</p>
+            {% endif %}
+        </section>
+
+    </main>
+
+    <!-- Footer unificado -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm text-slate-500">
+            <p>Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
+
+</body>
+</html>

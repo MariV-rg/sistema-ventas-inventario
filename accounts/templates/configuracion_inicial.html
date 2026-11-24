@@ -1,0 +1,108 @@
+    {% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración inicial - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-800 antialiased">
+
+    <!-- Header (Centrado porque es pantalla de Login) -->
+    <header class="bg-slate-900 text-white shadow-md">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-center gap-3">
+            <div class="bg-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+                <img src="{% static 'inventario/img/icono.png' %}" alt="Icono" class="w-8 h-8 md:w-10 md:h-10 rounded-md object-contain">
+            </div>
+            <div class="text-center">
+                <h1 class="text-lg md:text-xl font-bold tracking-wide leading-tight">Sistema de Ventas</h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestión e Inventario</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-1 flex items-center justify-center px-4 py-10">
+        <div class="w-full max-w-md">
+
+            <div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-8 md:p-10">
+
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-600 mb-4">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-900">Configuración inicial</h2>
+                    <p class="text-sm text-slate-500 mt-1">
+                        Es la primera vez que se usa el sistema. Crea la cuenta del administrador principal.
+                    </p>
+                </div>
+
+                <form method="post" class="space-y-5">
+                    {% csrf_token %}
+
+                    <div>
+                        <label for="id_username" class="block text-sm font-medium text-slate-700 mb-1.5">Usuario</label>
+                        <input type="text" name="username" id="id_username" required 
+                               value="{{ form.username.value|default_if_none:'' }}"
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                        {% if form.username.errors %}
+                            <p class="text-red-600 text-sm mt-1.5">{{ form.username.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="id_email" class="block text-sm font-medium text-slate-700 mb-1.5">Correo electrónico</label>
+                        <input type="email" name="email" id="id_email" required 
+                               value="{{ form.email.value|default_if_none:'' }}"
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                        {% if form.email.errors %}
+                            <p class="text-red-600 text-sm mt-1.5">{{ form.email.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="id_password1" class="block text-sm font-medium text-slate-700 mb-1.5">Contraseña</label>
+                        <input type="password" name="password1" id="id_password1" required 
+                               
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                        {% if form.password1.errors %}
+                            <p class="text-red-600 text-sm mt-1.5">{{ form.password1.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="id_password2" class="block text-sm font-medium text-slate-700 mb-1.5">Confirmar contraseña</label>
+                        <input type="password" name="password2" id="id_password2" required 
+                               
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                        {% if form.password2.errors %}
+                            <p class="text-red-600 text-sm mt-1.5">{{ form.password2.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit"
+                            class="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl py-3 shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        Crear administrador principal
+                    </button>
+                </form>
+            </div>
+
+            <p class="text-center text-xs text-slate-500 mt-6">
+                Esta pantalla solo aparece una vez. Después, los demás usuarios los crea el administrador desde Usuarios.
+            </p>
+
+        </div>
+    </main>
+
+    <!-- Footer unificado -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm text-slate-500">
+            <p>Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
+
+</body>
+</html>

@@ -72,6 +72,7 @@
                 {% for message in messages %}
                     <div class="flex items-start gap-2 border-l-4 rounded-md px-4 py-3 text-sm
                         {% if message.tags == 'success' %} bg-green-50 border-green-500 text-green-700
+                        {% elif message.tags == 'warning' %} bg-amber-50 border-amber-500 text-amber-700
                         {% else %} bg-red-50 border-red-500 text-red-700 {% endif %}">
                         <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             {% if message.tags == 'success' %}
@@ -95,7 +96,7 @@
                 </span>
                 <div>
                     <h3 class="font-semibold text-slate-800">Productos de la venta</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">Escribe la cantidad que se devuelve. Vuelve al inventario y se descuenta del total vendido.</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Elige el producto que se devuelve. Ahí indicas el motivo y qué se hace con el dinero.</p>
                 </div>
             </div>
 
@@ -120,31 +121,13 @@
                         </div>
 
                         {% if l.disponible > 0 %}
-                            <form method="post" action="{% url 'registrar_devolucion' venta.id %}"
-                                  class="flex flex-wrap items-center gap-2 md:justify-end"
-                                  onsubmit="return confirm('¿Registrar la devolución de {{ l.detalle.producto.nombre|escapejs }}?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="detalle" value="{{ l.detalle.id }}">
-                                <input type="number" name="cantidad" step="any" min="0" required
-                                       placeholder="Máx. {{ l.disponible|floatformat:'-3' }}"
-                                       class="w-28 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
-                                {% if l.es_peso %}
-                                    <select name="unidad"
-                                            class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
-                                        <option value="kg" {% if l.unidad == 'kg' %}selected{% endif %}>Kilos</option>
-                                        <option value="g" {% if l.unidad == 'g' %}selected{% endif %}>Gramos</option>
-                                    </select>
-                                {% else %}
-                                    <span class="text-xs font-medium text-slate-500 px-2">{{ l.unidad }}</span>
-                                {% endif %}
-                                <button type="submit"
-                                        class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl px-4 py-2 shadow-sm hover:shadow-md transition-all">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4"/>
-                                    </svg>
-                                    Devolver
-                                </button>
-                            </form>
+                            <a href="{% url 'devolver_producto' venta.id l.detalle.id %}"
+                               class="inline-flex items-center gap-1.5 w-fit bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl px-4 py-2 shadow-sm hover:shadow-md transition-all">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4"/>
+                                </svg>
+                                Devolver
+                            </a>
                         {% else %}
                             <span class="inline-flex items-center gap-1.5 w-fit text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full ring-1 ring-slate-200">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,7 +147,7 @@
                     <span class="font-medium text-slate-800">${{ venta.total|floatformat:"-2g" }}</span>
                 </div>
                 <div class="flex justify-between items-center">
-                    <span class="text-slate-500">Total devuelto</span>
+                    <span class="text-slate-500">Total reembolsado</span>
                     <span class="font-medium text-red-600">- ${{ total_devuelto|floatformat:"-2g" }}</span>
                 </div>
                 <div class="flex justify-between items-center border-t border-slate-200 pt-3 mt-1">
@@ -173,6 +156,51 @@
                 </div>
             </div>
         </section>
+
+        <!-- Lo que ya se devolvió de esta venta -->
+        {% if historial %}
+            <section class="mt-6 bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                    <h3 class="font-semibold text-slate-800">Devoluciones de esta venta</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Con su motivo y lo que pasó con la unidad y con el dinero</p>
+                </div>
+                <ul class="divide-y divide-slate-100">
+                    {% for h in historial %}
+                        <li class="px-6 py-4 text-sm">
+                            <div class="flex flex-wrap items-baseline justify-between gap-2">
+                                <p class="font-semibold text-slate-800">
+                                    {{ h.dev.detalle.producto.nombre }}
+                                    <span class="font-normal text-slate-500">· {{ h.dev.cantidad|floatformat:"-3" }} {{ h.unidad }}</span>
+                                </p>
+                                <p class="text-xs text-slate-400">{{ h.dev.fecha|date:"d/m/Y H:i" }} · {{ h.dev.vendedor.username }}</p>
+                            </div>
+                            <p class="mt-1 text-slate-600">
+                                <span class="font-medium">Motivo:</span> {{ h.dev.get_motivo_display }}
+                                {% if h.dev.detalle_motivo %}<span class="text-slate-500">· {{ h.dev.detalle_motivo }}</span>{% endif %}
+                            </p>
+                            <div class="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                                <span class="px-2.5 py-1 rounded-full ring-1
+                                    {% if h.dev.destino == 'STOCK' %}bg-green-50 text-green-700 ring-green-200
+                                    {% elif h.dev.destino == 'CAMBIO' %}bg-amber-50 text-amber-700 ring-amber-200
+                                    {% else %}bg-red-50 text-red-700 ring-red-200{% endif %}">
+                                    {{ h.dev.get_destino_display }}
+                                </span>
+                                {% if h.dev.resolucion == 'REEMBOLSO' %}
+                                    <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200">
+                                        Reembolso ${{ h.dev.reembolso|floatformat:"-2g" }}
+                                        {% if h.dev.forma_reembolso %}· {{ h.dev.get_forma_reembolso_display|lower }}{% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200">
+                                        Cambio por {{ h.dev.cantidad_entregada|floatformat:"-3" }} {{ h.unidad_entregada }} de {{ h.dev.producto_entregado.nombre }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endif %}
 
     </main>
 

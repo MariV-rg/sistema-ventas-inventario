@@ -44,9 +44,10 @@ class Caja(models.Model):
         return total or Decimal('0')
 
     def devoluciones_en_efectivo(self):
-        '''HU17: lo devuelto en efectivo en esta caja (sale de la caja). Las devoluciones de ventas
-        pagadas por Nequi, Daviplata, etc. no mueven el efectivo.'''
-        total = self.devoluciones.filter(detalle__venta__metodo_pago=Venta.EFECTIVO).aggregate(total=Sum('valor'))['total']
+        '''HU17: el dinero que se devolvió EN EFECTIVO en esta caja (sale del cajón). No importa cómo
+        pagó el cliente: si pagó por Nequi y se le devolvió en efectivo, también sale de la caja.
+        Los reembolsos por transferencia y los cambios por otro producto no mueven el efectivo.'''
+        total = self.devoluciones.filter(forma_reembolso=Devolucion.FORMA_EFECTIVO).aggregate(total=Sum('reembolso'))['total']
         return total or Decimal('0')
 
     def efectivo_esperado(self):
@@ -108,8 +109,8 @@ class Venta(models.Model):
         ordering = ['-fecha']
 
     def total_devuelto(self):
-        '''HU17: suma de lo devuelto de esta venta.'''
-        total = Devolucion.objects.filter(detalle__venta=self).aggregate(total=Sum('valor'))['total']
+        '''HU17: suma del dinero reembolsado de esta venta (un cambio por otro producto no cuenta).'''
+        total = Devolucion.objects.filter(detalle__venta=self).aggregate(total=Sum('reembolso'))['total']
         return total or Decimal('0')
 
     def total_neto(self):
@@ -152,20 +153,117 @@ class DetalleVenta(models.Model):
 class Devolucion(models.Model):
     '''
     HU17: devolución de un producto de una venta ya confirmada.
-    La cantidad vuelve al inventario y el valor se descuenta del total vendido.
     Se guarda en una tabla aparte para no alterar la venta original (queda el rastro).
+    Cada devolución responde tres preguntas:
+      - ¿por qué se devolvió?        -> motivo
+      - ¿qué pasó con la unidad?     -> destino (vuelve al inventario, para cambio o pérdida)
+      - ¿qué pasó con el cliente?    -> resolución (reembolso o cambio por otro producto)
     '''
+    MOTIVO_VENCIDO = 'VENCIDO'
+    MOTIVO_DEFECTUOSO = 'DEFECTUOSO'
+    MOTIVO_VICIO_OCULTO = 'VICIO_OCULTO'
+    MOTIVO_DIFERENTE = 'DIFERENTE'
+    MOTIVO_OTRO = 'OTRO'
+    MOTIVO_CHOICES = [
+        (MOTIVO_VENCIDO, 'Producto vencido'),
+        (MOTIVO_DEFECTUOSO, 'Defectuoso o daño de fábrica'),
+        (MOTIVO_VICIO_OCULTO, 'Vicio oculto o daño no visible'),
+        (MOTIVO_DIFERENTE, 'Producto diferente al comprado'),
+        (MOTIVO_OTRO, 'Otro'),
+    ]
+
+    DESTINO_STOCK = 'STOCK'
+    DESTINO_CAMBIO = 'CAMBIO'
+    DESTINO_PERDIDA = 'PERDIDA'
+    DESTINO_CHOICES = [
+        (DESTINO_STOCK, 'Vuelve al inventario'),
+        (DESTINO_CAMBIO, 'Para cambio con el proveedor'),
+        (DESTINO_PERDIDA, 'Pérdida'),
+    ]
+
+    RESOLUCION_REEMBOLSO = 'REEMBOLSO'
+    RESOLUCION_CAMBIO = 'CAMBIO'
+    RESOLUCION_CHOICES = [
+        (RESOLUCION_REEMBOLSO, 'Reembolso'),
+        (RESOLUCION_CAMBIO, 'Cambio por otro producto'),
+    ]
+
+    FORMA_EFECTIVO = 'EFECTIVO'
+    FORMA_TRANSFERENCIA = 'TRANSFERENCIA'
+    FORMA_CHOICES = [
+        (FORMA_EFECTIVO, 'Efectivo'),
+        (FORMA_TRANSFERENCIA, 'Transferencia'),
+    ]
+
     detalle = models.ForeignKey(DetalleVenta, on_delete=models.PROTECT, related_name='devoluciones')
     cantidad = models.DecimalField(max_digits=10, decimal_places=3)       # en la unidad base del producto
-    valor = models.DecimalField(max_digits=12, decimal_places=2)          # lo que se descuenta del total vendido
+    valor = models.DecimalField(max_digits=12, decimal_places=2)          # lo que valían las unidades devueltas
     fecha = models.DateTimeField(auto_now_add=True)
     vendedor = models.ForeignKey(User, on_delete=models.PROTECT, related_name='devoluciones')
-    # la caja que estaba abierta al devolver: si la venta fue en efectivo, el dinero sale de esa caja
+    # la caja que estaba abierta al devolver: si el dinero se devuelve en efectivo, sale de esa caja
     caja = models.ForeignKey(Caja, on_delete=models.PROTECT, related_name='devoluciones',
                              null=True, blank=True)
+
+    # ¿por qué?
+    motivo = models.CharField(max_length=20, choices=MOTIVO_CHOICES, default=MOTIVO_OTRO)
+    detalle_motivo = models.TextField(blank=True)
+    # ¿qué pasó con la unidad?
+    destino = models.CharField(max_length=10, choices=DESTINO_CHOICES, default=DESTINO_STOCK)
+    # ¿qué pasó con el cliente?
+    resolucion = models.CharField(max_length=10, choices=RESOLUCION_CHOICES, default=RESOLUCION_REEMBOLSO)
+    forma_reembolso = models.CharField(max_length=15, choices=FORMA_CHOICES, blank=True)
+    reembolso = models.DecimalField(max_digits=12, decimal_places=2, default=0)   # dinero que realmente se devolvió
+    # en un cambio por otro producto: qué se entregó y cuánto
+    producto_entregado = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name='entregado_en_cambios',
+                                           null=True, blank=True)
+    cantidad_entregada = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
 
     class Meta:
         ordering = ['-fecha']
 
     def __str__(self):
         return f'Devolución #{self.id}'
+
+
+class RegistroBaja(models.Model):
+    '''
+    HU25: unidades que no se pueden vender (vencidas, defectuosas...) y que el proveedor cambia
+    o que se pierden. Llegan de dos formas: solas, desde una devolución cuya unidad no volvió al
+    inventario, o registradas a mano cuando alguien encuentra un producto malo en el inventario.
+    '''
+    ESTADO_PENDIENTE = 'PENDIENTE'
+    ESTADO_CAMBIADO = 'CAMBIADO'
+    ESTADO_PERDIDA = 'PERDIDA'
+    ESTADO_CHOICES = [
+        (ESTADO_PENDIENTE, 'Pendiente de cambio'),
+        (ESTADO_CAMBIADO, 'Cambiado por el proveedor'),
+        (ESTADO_PERDIDA, 'Pérdida'),
+    ]
+
+    ORIGEN_DEVOLUCION = 'DEVOLUCION'
+    ORIGEN_INVENTARIO = 'INVENTARIO'
+    ORIGEN_CHOICES = [
+        (ORIGEN_DEVOLUCION, 'Devolución de un cliente'),
+        (ORIGEN_INVENTARIO, 'Registro del inventario'),
+    ]
+
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name='bajas')
+    cantidad = models.DecimalField(max_digits=10, decimal_places=3)       # en la unidad base del producto
+    motivo = models.CharField(max_length=20, choices=Devolucion.MOTIVO_CHOICES)
+    detalle_motivo = models.TextField(blank=True)
+    estado = models.CharField(max_length=10, choices=ESTADO_CHOICES)
+    origen = models.CharField(max_length=10, choices=ORIGEN_CHOICES)
+    # si viene de una devolución: cuál. Si el historial de esa venta se elimina (HU21), la baja se conserva.
+    devolucion = models.OneToOneField(Devolucion, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='baja')
+    registrada_por = models.ForeignKey(User, on_delete=models.PROTECT, related_name='bajas_registradas')
+    fecha = models.DateTimeField(auto_now_add=True)
+    cambiada_en = models.DateTimeField(null=True, blank=True)
+    cambiada_por = models.ForeignKey(User, on_delete=models.PROTECT, related_name='bajas_cambiadas',
+                                     null=True, blank=True)
+
+    class Meta:
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f'Baja #{self.id}: {self.cantidad} x {self.producto.nombre}'

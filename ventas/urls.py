@@ -14,6 +14,12 @@ urlpatterns = [
     path('ventas/cancelar/', views.cancelar_venta, name='cancelar_venta'),
     path('ventas/devoluciones/', views.devoluciones, name='devoluciones'),
     path('ventas/devoluciones/<int:venta_id>/', views.devolver_venta, name='devolver_venta'),
-    path('ventas/devoluciones/<int:venta_id>/registrar/', views.registrar_devolucion, name='registrar_devolucion'),
+    path('ventas/devoluciones/<int:venta_id>/producto/<int:detalle_id>/', views.devolver_producto, name='devolver_producto'),
     path('ventas/historial/', views.historial_ventas, name='historial_ventas'),
+    path('ventas/reporte/', views.reporte_ventas, name='reporte_ventas'),
+    path('ventas/historial/eliminar/', views.eliminar_historial, name='eliminar_historial'),
+    path('bajas/', views.lista_bajas, name='lista_bajas'),
+    path('bajas/nueva/', views.registrar_baja, name='registrar_baja'),
+    path('bajas/<int:baja_id>/cambiada/', views.marcar_baja_cambiada, name='marcar_baja_cambiada'),
+    path('ventas/historial/eliminar/<int:anio>/<int:mes>/', views.confirmar_eliminar_historial, name='confirmar_eliminar_historial'),
 ]

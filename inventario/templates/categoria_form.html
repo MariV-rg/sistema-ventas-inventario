@@ -1,0 +1,148 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Categoría - Sistema de Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-800 antialiased">
+
+    <!-- Header Principal -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 rounded-lg p-1.5 backdrop-blur-sm">
+                    <img src="{% static 'inventario/img/icono.png' %}" alt="Icono" class="w-8 h-8 md:w-10 md:h-10 rounded-md object-contain">
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold tracking-wide leading-tight">Sistema de Ventas</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Gestión e Inventario</p>
+                </div>
+            </div>
+
+            <!-- Perfil / Volver -->
+            <div class="flex items-center gap-3">
+                <a href="{% url 'lista_categorias' %}" class="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:inline-flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Volver a categorías
+                </a>
+                <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold shadow-inner">
+                    {{ user.username|first|upper }}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-1 container mx-auto px-4 py-8 max-w-4xl">
+
+        <!-- Encabezado de sección -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="flex-shrink-0 w-11 h-11 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                    </svg>
+                </span>
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">Categoría</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Datos de la categoría</p>
+                </div>
+            </div>
+
+            <a href="{% url 'lista_categorias' %}"
+               class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-lg shadow-sm transition-all w-fit">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Volver
+            </a>
+        </div>
+
+        <!-- Mensajes -->
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                    <div class="flex items-start gap-2 border-l-4 rounded-md px-4 py-3 text-sm
+                        {% if message.tags == 'success' %} bg-green-50 border-green-500 text-green-700
+                        {% elif message.tags == 'warning' %} bg-amber-50 border-amber-500 text-amber-700
+                        {% else %} bg-red-50 border-red-500 text-red-700 {% endif %}">
+                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {% if message.tags == 'success' %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            {% else %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/>
+                            {% endif %}
+                        </svg>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <h3 class="font-semibold text-slate-800">{% if modo == 'crear' %}Nueva categoría{% else %}Editar categoría{% endif %}</h3>
+            </div>
+
+            <form method="post" class="px-6 py-6 space-y-6">
+                {% csrf_token %}
+
+                {% if errors %}
+                    <div class="border-l-4 border-red-500 bg-red-50 rounded-md px-4 py-3 text-sm text-red-700">
+                        <p class="font-semibold mb-1">Revisa lo siguiente:</p>
+                        <ul class="list-disc pl-5 space-y-0.5">
+                            {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <div>
+                    <label for="id_nombre" class="block text-sm font-semibold text-slate-700 mb-1.5">Nombre</label>
+                    <input type="text" name="nombre" id="id_nombre" maxlength="50" value="{{ datos.nombre }}" placeholder="Ej: Lácteos"
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                </div>
+
+                <div>
+                    <label for="id_es_peso_variable" class="flex items-start gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl {% if tiene_productos %}opacity-70{% else %}cursor-pointer hover:bg-slate-100{% endif %} transition-colors">
+                        <input type="checkbox" name="es_peso_variable" id="id_es_peso_variable"
+                               {% if datos.es_peso_variable %}checked{% endif %}
+                               {% if tiene_productos %}onclick="return false"{% endif %}
+                               class="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                        <span>
+                            <span class="block text-sm font-semibold text-slate-700">Se vende por peso</span>
+                            <span class="block text-xs text-slate-400 mt-0.5">
+                                Actívalo para productos como papa o cebolla, que se venden en gramos o kilos.
+                            </span>
+                        </span>
+                    </label>
+                    {% if tiene_productos %}
+                        <p class="text-xs text-amber-700 mt-2">
+                            Esta categoría ya tiene productos, por eso no se puede cambiar si se vende por peso.
+                        </p>
+                    {% endif %}
+                </div>
+
+                <div class="pt-2 flex flex-col sm:flex-row gap-3 border-t border-slate-100">
+                    <button type="submit" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all">Guardar</button>
+                    <a href="{% url 'lista_categorias' %}" class="inline-flex items-center justify-center px-5 py-2.5 bg-white text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors border border-slate-200">Cancelar</a>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+    <!-- Footer unificado -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm text-slate-500">
+            <p>Proyecto ADSO · SENA &copy; {% now "Y" %}</p>
+        </div>
+    </footer>
+
+</body>
+</html>

@@ -23,4 +23,4 @@ class CajaAdmin(admin.ModelAdmin):
 
 @admin.register(Devolucion)
 class DevolucionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'fecha', 'detalle', 'cantidad', 'valor', 'vendedor', 'caja')
+    list_display = ('id', 'fecha', 'detalle', 'cantidad', 'valor', 'motivo', 'destino', 'resolucion', 'reembolso', 'vendedor', 'caja')

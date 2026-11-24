@@ -115,6 +115,11 @@
                                 {{ form.roles.errors.0 }}
                             </p>
                         {% endif %}
+                        {% if not es_principal %}
+                            <p class="text-xs text-slate-500 mt-1.5">
+                                Solo el administrador principal puede crear otros administradores.
+                            </p>
+                        {% endif %}
                     </div>
 
                     <!-- Contraseña -->
