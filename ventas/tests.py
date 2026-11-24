@@ -9,7 +9,7 @@ from django.utils import timezone
 from accounts.models import Perfil, Rol
 from inventario.models import Categoria, Producto
 
-from .models import Caja, DetalleVenta, Devolucion, Venta
+from .models import Caja, DetalleVenta, Devolucion, RegistroBaja, Venta
 
 
 class EliminarHistorialTests(TestCase):
@@ -114,3 +114,99 @@ class EliminarHistorialTests(TestCase):
         self.assertEqual(self.client.get(reverse('eliminar_historial')).status_code, 302)
         self.client.post(self.url_confirmar(self.mes_pasado), {'confirmacion': 'si'})
         self.assertEqual(Venta.objects.count(), 1)
+
+
+class BajasTests(TestCase):
+    def setUp(self):
+        self.vendedor = User.objects.create_user('vend', password='Tienda-Segura-2026')
+        Perfil.objects.create(usuario=self.vendedor).roles.set([Rol.objects.get(nombre=Rol.VENDEDOR)])
+        self.client.force_login(self.vendedor)           # lo puede hacer cualquier empleado
+
+        categoria, _ = Categoria.objects.get_or_create(nombre='Aseo')
+        self.yogur = Producto.objects.create(categoria=categoria, nombre='Yogur', precio=Decimal('3000'),
+                                             stock=Decimal('10'), recibe_cambio=True)
+        self.jabon = Producto.objects.create(categoria=categoria, nombre='Jabón', precio=Decimal('2000'),
+                                             stock=Decimal('10'), recibe_cambio=False)
+
+    def registrar(self, producto, cantidad='2', motivo='VENCIDO', detalle=''):
+        return self.client.post(reverse('registrar_baja'), {
+            'producto': producto.id, 'cantidad': cantidad, 'motivo': motivo, 'detalle_motivo': detalle})
+
+    def devolucion(self, destino):
+        venta = Venta.objects.create(vendedor=self.vendedor, metodo_pago=Venta.EFECTIVO, total=Decimal('3000'))
+        detalle = DetalleVenta.objects.create(venta=venta, producto=self.yogur, cantidad=Decimal('1'),
+                                              precio_unitario=Decimal('3000'), subtotal=Decimal('3000'))
+        return Devolucion.objects.create(
+            detalle=detalle, cantidad=Decimal('1'), valor=Decimal('3000'), vendedor=self.vendedor,
+            motivo=Devolucion.MOTIVO_VENCIDO, destino=destino, reembolso=Decimal('3000'),
+            forma_reembolso=Devolucion.FORMA_EFECTIVO)
+
+    def test_registrar_una_baja_la_descuenta_del_inventario_y_queda_pendiente_si_recibe_cambio(self):
+        # 25B y 25C
+        self.registrar(self.yogur, '3')
+        self.yogur.refresh_from_db()
+        self.assertEqual(self.yogur.stock, Decimal('7'))
+        baja = RegistroBaja.objects.get()
+        self.assertEqual(baja.estado, RegistroBaja.ESTADO_PENDIENTE)
+        self.assertEqual(baja.origen, RegistroBaja.ORIGEN_INVENTARIO)
+        self.assertEqual(baja.registrada_por, self.vendedor)
+
+    def test_un_producto_que_no_recibe_cambio_queda_como_perdida(self):
+        # 25E
+        self.registrar(self.jabon, '2')
+        self.assertEqual(RegistroBaja.objects.get().estado, RegistroBaja.ESTADO_PERDIDA)
+
+    def test_no_se_da_de_baja_mas_de_lo_que_hay_en_el_inventario(self):
+        self.registrar(self.yogur, '11')
+        self.assertFalse(RegistroBaja.objects.exists())
+        self.yogur.refresh_from_db()
+        self.assertEqual(self.yogur.stock, Decimal('10'))
+
+    def test_datos_invalidos_no_registran_nada(self):
+        self.registrar(self.yogur, '0')
+        self.registrar(self.yogur, '1.5')                                  # unidades enteras
+        self.registrar(self.yogur, '2', motivo='')
+        self.registrar(self.yogur, '2', motivo='OTRO', detalle='')         # "otro" exige explicación
+        self.assertFalse(RegistroBaja.objects.exists())
+
+    def test_marcar_como_cambiada(self):
+        # 25D
+        self.registrar(self.yogur, '3')
+        baja = RegistroBaja.objects.get()
+        self.client.post(reverse('marcar_baja_cambiada', args=[baja.id]))
+        baja.refresh_from_db()
+        self.assertEqual(baja.estado, RegistroBaja.ESTADO_CAMBIADO)
+        self.assertEqual(baja.cambiada_por, self.vendedor)
+        self.assertIsNotNone(baja.cambiada_en)
+        self.yogur.refresh_from_db()
+        self.assertEqual(self.yogur.stock, Decimal('7'))       # las unidades nuevas entran por una recepción, no aquí
+
+    def test_una_perdida_no_se_puede_marcar_como_cambiada(self):
+        self.registrar(self.jabon, '2')
+        baja = RegistroBaja.objects.get()
+        self.client.post(reverse('marcar_baja_cambiada', args=[baja.id]))
+        baja.refresh_from_db()
+        self.assertEqual(baja.estado, RegistroBaja.ESTADO_PERDIDA)
+
+    def test_las_devoluciones_que_no_volvieron_al_inventario_aparecen_solas(self):
+        # 25A
+        self.devolucion(Devolucion.DESTINO_CAMBIO)
+        self.devolucion(Devolucion.DESTINO_PERDIDA)
+        self.devolucion(Devolucion.DESTINO_STOCK)                           # esta volvió al inventario: no es baja
+        self.client.get(reverse('lista_bajas'))
+        self.assertEqual(RegistroBaja.objects.count(), 2)
+        estados = set(RegistroBaja.objects.values_list('estado', flat=True))
+        self.assertEqual(estados, {RegistroBaja.ESTADO_PENDIENTE, RegistroBaja.ESTADO_PERDIDA})
+        self.client.get(reverse('lista_bajas'))                             # volver a abrir no duplica nada
+        self.assertEqual(RegistroBaja.objects.count(), 2)
+
+    def test_filtrar_por_estado(self):
+        # 25F
+        self.registrar(self.yogur, '1')
+        self.registrar(self.jabon, '1')
+        respuesta = self.client.get(reverse('lista_bajas') + '?estado=PERDIDA')
+        self.assertEqual([f['baja'].producto.nombre for f in respuesta.context['filas']], ['Jabón'])
+
+    def test_sin_iniciar_sesion_no_se_puede_usar(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse('lista_bajas')).status_code, 302)

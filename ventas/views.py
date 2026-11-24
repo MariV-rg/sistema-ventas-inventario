@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 from accounts.decorators import rol_requerido
 from accounts.models import Rol
 from inventario.models import Categoria, Producto
-from .models import Caja, DetalleVenta, Devolucion, Venta
+from .models import Caja, DetalleVenta, Devolucion, RegistroBaja, Venta
 
 
 # ---------------------------------------------------------------
@@ -1020,3 +1020,149 @@ def confirmar_eliminar_historial(request, anio, mes):
         'mes': mes,
         'resumen': resumen,
     })
+
+
+# ---------------------------------------------------------------
+# HU25: productos para cambio y pérdidas (administrador o vendedor)
+# ---------------------------------------------------------------
+
+PERSONAL = (Rol.ADMINISTRADOR, Rol.VENDEDOR)
+MOTIVOS_DE_BAJA = [
+    (Devolucion.MOTIVO_VENCIDO, 'Producto vencido'),
+    (Devolucion.MOTIVO_DEFECTUOSO, 'Defectuoso o daño de fábrica'),
+    (Devolucion.MOTIVO_VICIO_OCULTO, 'Vicio oculto o daño no visible'),
+    (Devolucion.MOTIVO_OTRO, 'Otro'),
+]
+
+
+def sincronizar_bajas_de_devoluciones():
+    """
+    25A: toda devolución cuya unidad no volvió al inventario (quedó "para cambio" o como pérdida)
+    aparece sola en esta lista. Es seguro repetirla: cada devolución genera una sola baja.
+    """
+    nuevas = (Devolucion.objects.filter(destino__in=[Devolucion.DESTINO_CAMBIO, Devolucion.DESTINO_PERDIDA],
+                                        baja__isnull=True)
+              .select_related('detalle__producto', 'vendedor'))
+    for dev in nuevas:
+        estado = (RegistroBaja.ESTADO_PENDIENTE if dev.destino == Devolucion.DESTINO_CAMBIO
+                  else RegistroBaja.ESTADO_PERDIDA)
+        baja, creada = RegistroBaja.objects.get_or_create(devolucion=dev, defaults={
+            'producto': dev.detalle.producto, 'cantidad': dev.cantidad, 'motivo': dev.motivo,
+            'detalle_motivo': dev.detalle_motivo, 'estado': estado,
+            'origen': RegistroBaja.ORIGEN_DEVOLUCION, 'registrada_por': dev.vendedor,
+        })
+        if creada:
+            RegistroBaja.objects.filter(pk=baja.pk).update(fecha=dev.fecha)    # conserva la fecha de la devolución
+
+
+def validar_cantidad_baja(producto, texto):
+    """Devuelve (error, cantidad). Nunca se da de baja más de lo que hay en el inventario."""
+    try:
+        cantidad = Decimal(texto.strip())
+    except InvalidOperation:
+        return 'La cantidad debe ser un número.', None
+    if not cantidad.is_finite() or cantidad <= 0:
+        return 'La cantidad debe ser un número mayor que 0.', None
+    if cantidad.as_tuple().exponent < -3:
+        return 'La cantidad puede tener máximo 3 decimales.', None
+    if not producto.categoria.es_peso_variable and cantidad != cantidad.to_integral_value():
+        return 'Este producto se maneja por unidades: ingresa un número entero.', None
+    if cantidad > producto.stock:
+        return (f'Solo hay {formats.localize(producto.stock.normalize())} {unidad_corta(producto)} de '
+                f'"{producto.nombre}" en el inventario.'), None
+    return None, cantidad
+
+
+@rol_requerido(*PERSONAL)
+def lista_bajas(request):
+    sincronizar_bajas_de_devoluciones()                                                     # 25A
+
+    estado = request.GET.get('estado', '')
+    bajas = RegistroBaja.objects.select_related(
+        'producto__categoria', 'registrada_por', 'cambiada_por', 'devolucion__detalle')
+    if estado in dict(RegistroBaja.ESTADO_CHOICES):                                         # 25F
+        bajas = bajas.filter(estado=estado)
+
+    conteos = {fila['estado']: fila['n']
+               for fila in RegistroBaja.objects.order_by().values('estado').annotate(n=Count('id'))}
+    return render(request, 'bajas_lista.html', {
+        'filas': [{'baja': b, 'unidad': unidad_corta(b.producto)} for b in bajas],
+        'estado': estado,
+        'total': sum(conteos.values()),
+        'pendientes': conteos.get(RegistroBaja.ESTADO_PENDIENTE, 0),
+        'cambiadas': conteos.get(RegistroBaja.ESTADO_CAMBIADO, 0),
+        'perdidas': conteos.get(RegistroBaja.ESTADO_PERDIDA, 0),
+    })
+
+
+@rol_requerido(*PERSONAL)
+def registrar_baja(request):
+    errors = []
+    datos = {}
+
+    if request.method == 'POST':
+        datos = request.POST
+        producto_id = request.POST.get('producto', '')
+        motivo = request.POST.get('motivo', '')
+        detalle = request.POST.get('detalle_motivo', '').strip()
+
+        if not producto_id.isdigit() or not Producto.objects.filter(id=producto_id, activo=True).exists():
+            errors.append('Elige el producto.')
+        if motivo not in dict(MOTIVOS_DE_BAJA):
+            errors.append('Elige el motivo.')
+        elif motivo == Devolucion.MOTIVO_OTRO and not detalle:
+            errors.append('Cuando el motivo es "Otro", explica qué pasó.')
+        if len(detalle) > 300:
+            errors.append('La explicación no puede tener más de 300 caracteres.')
+
+        if not errors:
+            with transaction.atomic():
+                # se bloquea el producto para revisar y descontar el stock sin que otro lo cambie
+                producto = Producto.objects.select_for_update().select_related('categoria').get(id=producto_id)
+                error, cantidad = validar_cantidad_baja(producto, request.POST.get('cantidad', ''))
+                if error:
+                    errors.append(error)
+                else:
+                    # 25B: sale del inventario disponible
+                    Producto.objects.filter(id=producto.id).update(stock=F('stock') - cantidad)
+                    # 25C y 25E: si el proveedor recibe cambios queda pendiente; si no, es pérdida
+                    estado = (RegistroBaja.ESTADO_PENDIENTE if producto.recibe_cambio
+                              else RegistroBaja.ESTADO_PERDIDA)
+                    RegistroBaja.objects.create(
+                        producto=producto, cantidad=cantidad, motivo=motivo, detalle_motivo=detalle,
+                        estado=estado, origen=RegistroBaja.ORIGEN_INVENTARIO, registrada_por=request.user)
+                    queda = ('Quedó pendiente de cambio con el proveedor.'
+                             if estado == RegistroBaja.ESTADO_PENDIENTE
+                             else 'Este producto no recibe cambio, así que se registró como pérdida.')
+                    messages.success(
+                        request,
+                        f'Baja registrada: {formats.localize(cantidad.normalize())} {unidad_corta(producto)} '
+                        f'de "{producto.nombre}" salieron del inventario. {queda}')
+                    return redirect('lista_bajas')
+
+    productos = [
+        {'id': p.id, 'nombre': p.nombre, 'unidad': unidad_corta(p), 'stock': p.stock, 'recibe_cambio': p.recibe_cambio}
+        for p in Producto.objects.filter(activo=True, stock__gt=0).select_related('categoria')
+    ]
+    return render(request, 'baja_form.html', {
+        'productos': productos, 'motivos': MOTIVOS_DE_BAJA, 'errors': errors, 'datos': datos,
+    })
+
+
+@rol_requerido(*PERSONAL)
+@require_POST
+def marcar_baja_cambiada(request, baja_id):
+    with transaction.atomic():
+        baja = get_object_or_404(RegistroBaja.objects.select_for_update(), id=baja_id)
+        if baja.estado != RegistroBaja.ESTADO_PENDIENTE:
+            messages.error(request, 'Esta baja no está pendiente de cambio.')
+        else:
+            baja.estado = RegistroBaja.ESTADO_CAMBIADO                                      # 25D
+            baja.cambiada_en = timezone.now()
+            baja.cambiada_por = request.user
+            baja.save(update_fields=['estado', 'cambiada_en', 'cambiada_por'])
+            messages.success(
+                request,
+                'Marcada como cambiada. Si el proveedor te entregó unidades nuevas, ingrésalas '
+                'en una recepción de mercancía.')
+    return redirect('lista_bajas')

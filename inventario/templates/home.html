@@ -269,6 +269,42 @@
                 </a>
             {% endif %}
 
+            {% if es_admin or es_vendedor %}
+                <!-- Módulos para todo el personal -->
+
+                <!-- Recepción de mercancía -->
+                <a href="{% url 'lista_recepciones' %}" class="group bg-white rounded-xl p-5 shadow-sm ring-1 ring-slate-200 hover:ring-orange-500 hover:shadow-md transition-all duration-200 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-orange-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                    <div class="relative flex items-start gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-bold text-slate-800 group-hover:text-orange-700">Recepción de mercancía</h4>
+                            <p class="text-sm text-slate-500 mt-1 line-clamp-2">Ingresa los pedidos de los proveedores contra su factura.</p>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- Cambios y pérdidas -->
+                <a href="{% url 'lista_bajas' %}" class="group bg-white rounded-xl p-5 shadow-sm ring-1 ring-slate-200 hover:ring-rose-500 hover:shadow-md transition-all duration-200 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                    <div class="relative flex items-start gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-bold text-slate-800 group-hover:text-rose-700">Cambios y pérdidas</h4>
+                            <p class="text-sm text-slate-500 mt-1 line-clamp-2">Productos vencidos o dañados para cambiar con el proveedor.</p>
+                        </div>
+                    </div>
+                </a>
+            {% endif %}
+
         </div>
     </main>
 

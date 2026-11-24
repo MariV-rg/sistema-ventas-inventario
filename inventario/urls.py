@@ -14,4 +14,10 @@ urlpatterns = [
     path('categorias/nueva/', views.crear_categoria, name='crear_categoria'),
     path('categorias/<int:id>/editar/', views.editar_categoria, name='editar_categoria'),
     path('categorias/<int:id>/eliminar/', views.eliminar_categoria, name='eliminar_categoria'),
+    path('recepciones/', views.lista_recepciones, name='lista_recepciones'),
+    path('recepciones/nueva/', views.crear_recepcion, name='crear_recepcion'),
+    path('recepciones/<int:id>/', views.detalle_recepcion, name='detalle_recepcion'),
+    path('recepciones/<int:id>/agregar/', views.agregar_linea_recepcion, name='agregar_linea_recepcion'),
+    path('recepciones/<int:id>/lineas/<int:linea_id>/ingresar/', views.ingresar_linea_recepcion, name='ingresar_linea_recepcion'),
+    path('recepciones/<int:id>/lineas/<int:linea_id>/quitar/', views.quitar_linea_recepcion, name='quitar_linea_recepcion'),
 ]
