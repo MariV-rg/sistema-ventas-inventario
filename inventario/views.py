@@ -1,16 +1,19 @@
 import unicodedata
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import Http404
+from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import formats
+from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import rol_requerido
 from accounts.models import Rol
-from .models import Categoria, Producto
+from .models import Categoria, LineaRecepcion, Producto, Recepcion
 
 
 def a_decimal(texto, limite):
@@ -369,3 +372,179 @@ def eliminar_categoria(request, id):
         categoria.delete()
         messages.success(request, f'Categoría "{nombre}" eliminada.')
     return redirect('lista_categorias')
+
+
+# ---------------------------------------------------------------
+# HU24: ingreso de mercancía por factura (administrador o vendedor)
+# ---------------------------------------------------------------
+
+PERSONAL = (Rol.ADMINISTRADOR, Rol.VENDEDOR)       # 24H: lo puede hacer todo el personal de la tienda
+
+
+def unidad_de(producto):
+    """Unidad en la que se cuenta el producto: kg, g o und."""
+    if producto.categoria.es_peso_variable:
+        return 'kg' if producto.unidad_base == Producto.UNIDAD_KILO else 'g'
+    return 'und'
+
+
+def validar_cantidad_ingreso(texto, producto):
+    """Devuelve (error, cantidad). Las reglas son las mismas del ingreso de unidades."""
+    cantidad = a_decimal(texto.strip(), 10 ** 7)
+    if cantidad is None or cantidad <= 0:
+        return 'La cantidad debe ser un número mayor que 0.', None
+    if cantidad.as_tuple().exponent < -3:
+        return 'La cantidad puede tener máximo 3 decimales.', None
+    if not producto.categoria.es_peso_variable and cantidad != cantidad.to_integral_value():
+        return 'Este producto se maneja por unidades: ingresa un número entero.', None
+    return None, cantidad
+
+
+@rol_requerido(*PERSONAL)
+def lista_recepciones(request):
+    recepciones = list(Recepcion.objects.select_related('registrada_por').annotate(
+        total=Count('lineas'),
+        ingresadas=Count('lineas', filter=Q(lineas__ingresada=True)),
+    ))
+    for r in recepciones:
+        r.completa = r.total > 0 and r.ingresadas == r.total
+        r.porcentaje = int(r.ingresadas * 100 / r.total) if r.total else 0
+
+    estado = request.GET.get('estado', '')
+    if estado == 'pendientes':
+        recepciones = [r for r in recepciones if not r.completa]
+    elif estado == 'completas':
+        recepciones = [r for r in recepciones if r.completa]
+    return render(request, 'recepciones_lista.html', {'recepciones': recepciones, 'estado': estado})
+
+
+@rol_requerido(*PERSONAL)
+def crear_recepcion(request):
+    errors = []
+    existente = None
+    datos = {'fecha': timezone.localdate().isoformat()}
+
+    if request.method == 'POST':
+        datos = request.POST
+        proveedor = ' '.join(request.POST.get('proveedor', '').split())
+        factura = request.POST.get('numero_factura', '').strip()
+        fecha = None
+
+        if not proveedor:
+            errors.append('El proveedor es obligatorio.')
+        elif len(proveedor) > 100:
+            errors.append('El nombre del proveedor no puede tener más de 100 caracteres.')
+        if not factura:
+            errors.append('El número de factura es obligatorio.')
+        elif len(factura) > 50:
+            errors.append('El número de factura no puede tener más de 50 caracteres.')
+        try:
+            fecha = date.fromisoformat(request.POST.get('fecha', ''))
+            if fecha > timezone.localdate():
+                errors.append('La fecha de la factura no puede ser futura.')
+        except ValueError:
+            errors.append('La fecha no es válida.')
+
+        if not errors:
+            # 24B: la misma factura del mismo proveedor no se registra dos veces
+            existente = Recepcion.objects.filter(proveedor__iexact=proveedor, numero_factura__iexact=factura).first()
+            if existente:
+                errors.append('Esa factura ya está registrada para ese proveedor.')
+
+        if not errors:
+            try:
+                recepcion = Recepcion.objects.create(                                       # 24A
+                    proveedor=proveedor, numero_factura=factura, fecha=fecha, registrada_por=request.user)
+            except IntegrityError:
+                errors.append('Esa factura ya está registrada para ese proveedor.')
+            else:
+                messages.success(request, 'Recepción creada. Ahora agrega los productos de la factura.')
+                return redirect('detalle_recepcion', id=recepcion.id)
+
+    return render(request, 'recepcion_form.html', {'errors': errors, 'datos': datos, 'existente': existente})
+
+
+@rol_requerido(*PERSONAL)
+def detalle_recepcion(request, id):
+    recepcion = get_object_or_404(Recepcion.objects.select_related('registrada_por'), id=id)
+    lineas = list(recepcion.lineas.select_related('producto__categoria', 'ingresada_por'))
+    filas = [{'linea': l, 'unidad': unidad_de(l.producto)} for l in lineas]
+
+    total = len(lineas)
+    ingresadas = sum(1 for l in lineas if l.ingresada)
+    en_la_factura = [l.producto_id for l in lineas]
+    disponibles = [
+        {'id': p.id, 'nombre': p.nombre, 'unidad': unidad_de(p)}
+        for p in Producto.objects.filter(activo=True).exclude(id__in=en_la_factura).select_related('categoria')
+    ]
+    return render(request, 'recepcion_detalle.html', {
+        'recepcion': recepcion,
+        'filas': filas,
+        'total': total,
+        'ingresadas': ingresadas,                                                           # 24F
+        'pendientes': total - ingresadas,
+        'completa': total > 0 and ingresadas == total,                                       # 24G
+        'porcentaje': int(ingresadas * 100 / total) if total else 0,
+        'disponibles': disponibles,
+    })
+
+
+@rol_requerido(*PERSONAL)
+@require_POST
+def agregar_linea_recepcion(request, id):
+    recepcion = get_object_or_404(Recepcion, id=id)
+    producto_id = request.POST.get('producto', '')
+    producto = (Producto.objects.select_related('categoria').filter(id=producto_id, activo=True).first()
+                if producto_id.isdigit() else None)
+    if producto is None:
+        messages.error(request, 'Elige el producto de la factura.')
+    elif recepcion.lineas.filter(producto=producto).exists():
+        messages.error(request, f'"{producto.nombre}" ya está en esta factura.')
+    else:
+        error, cantidad = validar_cantidad_ingreso(request.POST.get('cantidad', ''), producto)
+        if error:
+            messages.error(request, error)
+        else:
+            LineaRecepcion.objects.create(recepcion=recepcion, producto=producto, cantidad=cantidad)   # 24C
+            messages.success(request, f'"{producto.nombre}" agregado a la factura como pendiente.')
+    return redirect('detalle_recepcion', id=recepcion.id)
+
+
+@rol_requerido(*PERSONAL)
+@require_POST
+def ingresar_linea_recepcion(request, id, linea_id):
+    with transaction.atomic():
+        # se bloquea la línea para que dos personas no la ingresen al mismo tiempo
+        linea = (LineaRecepcion.objects.select_for_update().select_related('producto', 'recepcion')
+                 .filter(id=linea_id, recepcion_id=id).first())
+        if linea is None:
+            raise Http404
+        producto = linea.producto
+        if linea.ingresada:                                                                   # 24E
+            messages.error(request, f'"{producto.nombre}" ya se ingresó con esta factura. No se vuelve a sumar.')
+        elif not producto.activo:
+            messages.error(request, f'"{producto.nombre}" fue eliminado del catálogo y no se puede ingresar.')
+        elif producto.stock + linea.cantidad >= 10 ** 7:
+            messages.error(request, 'Con esa cantidad el stock superaría el máximo permitido.')
+        else:
+            Producto.objects.filter(id=producto.id).update(stock=F('stock') + linea.cantidad)   # 24D
+            linea.ingresada = True
+            linea.ingresada_por = request.user
+            linea.ingresada_en = timezone.now()
+            linea.save(update_fields=['ingresada', 'ingresada_por', 'ingresada_en'])
+            messages.success(
+                request,
+                f'Ingresado: {formats.localize(linea.cantidad.normalize())} {unidad_de(producto)} de "{producto.nombre}".')
+    return redirect('detalle_recepcion', id=id)
+
+
+@rol_requerido(*PERSONAL)
+@require_POST
+def quitar_linea_recepcion(request, id, linea_id):
+    linea = get_object_or_404(LineaRecepcion, id=linea_id, recepcion_id=id)
+    if linea.ingresada:
+        messages.error(request, 'Esa línea ya se ingresó al inventario y no se puede quitar.')
+    else:
+        linea.delete()
+        messages.success(request, 'Línea quitada de la factura.')
+    return redirect('detalle_recepcion', id=id)

@@ -1,12 +1,14 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Perfil, Rol
 
-from .models import Categoria, Producto
+from .models import Categoria, LineaRecepcion, Producto, Recepcion
 
 
 class CategoriasTests(TestCase):
@@ -76,3 +78,126 @@ class CategoriasTests(TestCase):
         antes = Categoria.objects.count()
         self.client.post(reverse('crear_categoria'), {'nombre': 'Intruso'})
         self.assertEqual(Categoria.objects.count(), antes)
+
+
+class RecepcionTests(TestCase):
+    def setUp(self):
+        self.vendedor = User.objects.create_user('vend', password='Tienda-Segura-2026')
+        Perfil.objects.create(usuario=self.vendedor).roles.set([Rol.objects.get(nombre=Rol.VENDEDOR)])
+        self.client.force_login(self.vendedor)           # 24H: lo puede hacer el personal, no solo el administrador
+
+        categoria, _ = Categoria.objects.get_or_create(nombre='Aseo')
+        self.jabon = Producto.objects.create(categoria=categoria, nombre='Jabón', precio=Decimal('2000'), stock=Decimal('10'))
+        self.cloro = Producto.objects.create(categoria=categoria, nombre='Cloro', precio=Decimal('3000'), stock=Decimal('5'))
+
+    def crear(self, proveedor='Alpina', factura='FV-1'):
+        return Recepcion.objects.create(proveedor=proveedor, numero_factura=factura,
+                                        fecha=timezone.localdate(), registrada_por=self.vendedor)
+
+    def agregar(self, recepcion, producto, cantidad):
+        return self.client.post(reverse('agregar_linea_recepcion', args=[recepcion.id]),
+                                {'producto': producto.id, 'cantidad': cantidad})
+
+    def ingresar(self, linea):
+        return self.client.post(reverse('ingresar_linea_recepcion', args=[linea.recepcion_id, linea.id]))
+
+    def test_crear_una_recepcion(self):
+        # 24A
+        self.client.post(reverse('crear_recepcion'), {
+            'proveedor': 'Alpina', 'numero_factura': 'FV-4532', 'fecha': timezone.localdate().isoformat()})
+        recepcion = Recepcion.objects.get(numero_factura='FV-4532')
+        self.assertEqual(recepcion.proveedor, 'Alpina')
+        self.assertEqual(recepcion.registrada_por, self.vendedor)
+
+    def test_la_misma_factura_del_mismo_proveedor_no_se_registra_dos_veces(self):
+        # 24B (sin importar mayúsculas)
+        self.crear('Alpina', 'FV-1')
+        respuesta = self.client.post(reverse('crear_recepcion'), {
+            'proveedor': 'ALPINA', 'numero_factura': 'fv-1', 'fecha': timezone.localdate().isoformat()})
+        self.assertEqual(Recepcion.objects.count(), 1)
+        self.assertIsNotNone(respuesta.context['existente'])
+
+    def test_el_mismo_numero_de_factura_de_otro_proveedor_si_se_permite(self):
+        self.crear('Alpina', 'FV-1')
+        self.client.post(reverse('crear_recepcion'), {
+            'proveedor': 'Colanta', 'numero_factura': 'FV-1', 'fecha': timezone.localdate().isoformat()})
+        self.assertEqual(Recepcion.objects.count(), 2)
+
+    def test_no_se_acepta_una_fecha_futura(self):
+        manana = (timezone.localdate() + timedelta(days=1)).isoformat()
+        self.client.post(reverse('crear_recepcion'), {'proveedor': 'Alpina', 'numero_factura': 'FV-9', 'fecha': manana})
+        self.assertEqual(Recepcion.objects.count(), 0)
+
+    def test_las_lineas_nuevas_quedan_pendientes(self):
+        # 24C
+        recepcion = self.crear()
+        self.agregar(recepcion, self.jabon, '12')
+        linea = recepcion.lineas.get()
+        self.assertFalse(linea.ingresada)
+        self.assertEqual(linea.cantidad, Decimal('12'))
+        self.jabon.refresh_from_db()
+        self.assertEqual(self.jabon.stock, Decimal('10'))          # agregar a la factura no toca el inventario
+
+    def test_un_producto_no_se_repite_en_la_misma_factura(self):
+        recepcion = self.crear()
+        self.agregar(recepcion, self.jabon, '12')
+        self.agregar(recepcion, self.jabon, '5')
+        self.assertEqual(recepcion.lineas.count(), 1)
+
+    def test_cantidades_invalidas_se_rechazan(self):
+        recepcion = self.crear()
+        for cantidad in ('0', '-3', 'abc', '1.5'):               # 1.5 und no es válido en un producto por unidad
+            self.agregar(recepcion, self.jabon, cantidad)
+        self.assertEqual(recepcion.lineas.count(), 0)
+
+    def test_ingresar_una_linea_suma_al_inventario_y_la_marca(self):
+        # 24D
+        recepcion = self.crear()
+        self.agregar(recepcion, self.jabon, '12')
+        linea = recepcion.lineas.get()
+        self.ingresar(linea)
+        self.jabon.refresh_from_db()
+        linea.refresh_from_db()
+        self.assertEqual(self.jabon.stock, Decimal('22'))
+        self.assertTrue(linea.ingresada)
+        self.assertEqual(linea.ingresada_por, self.vendedor)
+        self.assertIsNotNone(linea.ingresada_en)
+
+    def test_una_linea_ya_ingresada_no_se_puede_ingresar_otra_vez(self):
+        # 24E: el problema original, ingresar dos veces lo mismo
+        recepcion = self.crear()
+        self.agregar(recepcion, self.jabon, '12')
+        linea = recepcion.lineas.get()
+        self.ingresar(linea)
+        self.ingresar(linea)
+        self.jabon.refresh_from_db()
+        self.assertEqual(self.jabon.stock, Decimal('22'))          # 10 + 12, no 10 + 24
+
+    def test_el_progreso_y_la_recepcion_completa(self):
+        # 24F y 24G
+        recepcion = self.crear()
+        self.agregar(recepcion, self.jabon, '12')
+        self.agregar(recepcion, self.cloro, '4')
+        self.ingresar(recepcion.lineas.get(producto=self.jabon))
+        respuesta = self.client.get(reverse('detalle_recepcion', args=[recepcion.id]))
+        self.assertEqual((respuesta.context['ingresadas'], respuesta.context['total']), (1, 2))
+        self.assertFalse(respuesta.context['completa'])
+        self.ingresar(recepcion.lineas.get(producto=self.cloro))
+        respuesta = self.client.get(reverse('detalle_recepcion', args=[recepcion.id]))
+        self.assertTrue(respuesta.context['completa'])
+        self.assertTrue(recepcion.esta_completa())
+
+    def test_se_puede_quitar_una_linea_pendiente_pero_no_una_ingresada(self):
+        recepcion = self.crear()
+        self.agregar(recepcion, self.jabon, '12')
+        self.agregar(recepcion, self.cloro, '4')
+        pendiente = recepcion.lineas.get(producto=self.cloro)
+        ingresada = recepcion.lineas.get(producto=self.jabon)
+        self.ingresar(ingresada)
+        self.client.post(reverse('quitar_linea_recepcion', args=[recepcion.id, pendiente.id]))
+        self.client.post(reverse('quitar_linea_recepcion', args=[recepcion.id, ingresada.id]))
+        self.assertEqual(list(recepcion.lineas.values_list('producto__nombre', flat=True)), ['Jabón'])
+
+    def test_sin_iniciar_sesion_no_se_puede_usar(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse('lista_recepciones')).status_code, 302)

@@ -18,5 +18,8 @@ urlpatterns = [
     path('ventas/historial/', views.historial_ventas, name='historial_ventas'),
     path('ventas/reporte/', views.reporte_ventas, name='reporte_ventas'),
     path('ventas/historial/eliminar/', views.eliminar_historial, name='eliminar_historial'),
+    path('bajas/', views.lista_bajas, name='lista_bajas'),
+    path('bajas/nueva/', views.registrar_baja, name='registrar_baja'),
+    path('bajas/<int:baja_id>/cambiada/', views.marcar_baja_cambiada, name='marcar_baja_cambiada'),
     path('ventas/historial/eliminar/<int:anio>/<int:mes>/', views.confirmar_eliminar_historial, name='confirmar_eliminar_historial'),
 ]

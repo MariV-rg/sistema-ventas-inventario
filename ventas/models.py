@@ -223,3 +223,47 @@ class Devolucion(models.Model):
 
     def __str__(self):
         return f'Devolución #{self.id}'
+
+
+class RegistroBaja(models.Model):
+    '''
+    HU25: unidades que no se pueden vender (vencidas, defectuosas...) y que el proveedor cambia
+    o que se pierden. Llegan de dos formas: solas, desde una devolución cuya unidad no volvió al
+    inventario, o registradas a mano cuando alguien encuentra un producto malo en el inventario.
+    '''
+    ESTADO_PENDIENTE = 'PENDIENTE'
+    ESTADO_CAMBIADO = 'CAMBIADO'
+    ESTADO_PERDIDA = 'PERDIDA'
+    ESTADO_CHOICES = [
+        (ESTADO_PENDIENTE, 'Pendiente de cambio'),
+        (ESTADO_CAMBIADO, 'Cambiado por el proveedor'),
+        (ESTADO_PERDIDA, 'Pérdida'),
+    ]
+
+    ORIGEN_DEVOLUCION = 'DEVOLUCION'
+    ORIGEN_INVENTARIO = 'INVENTARIO'
+    ORIGEN_CHOICES = [
+        (ORIGEN_DEVOLUCION, 'Devolución de un cliente'),
+        (ORIGEN_INVENTARIO, 'Registro del inventario'),
+    ]
+
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name='bajas')
+    cantidad = models.DecimalField(max_digits=10, decimal_places=3)       # en la unidad base del producto
+    motivo = models.CharField(max_length=20, choices=Devolucion.MOTIVO_CHOICES)
+    detalle_motivo = models.TextField(blank=True)
+    estado = models.CharField(max_length=10, choices=ESTADO_CHOICES)
+    origen = models.CharField(max_length=10, choices=ORIGEN_CHOICES)
+    # si viene de una devolución: cuál. Si el historial de esa venta se elimina (HU21), la baja se conserva.
+    devolucion = models.OneToOneField(Devolucion, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='baja')
+    registrada_por = models.ForeignKey(User, on_delete=models.PROTECT, related_name='bajas_registradas')
+    fecha = models.DateTimeField(auto_now_add=True)
+    cambiada_en = models.DateTimeField(null=True, blank=True)
+    cambiada_por = models.ForeignKey(User, on_delete=models.PROTECT, related_name='bajas_cambiadas',
+                                     null=True, blank=True)
+
+    class Meta:
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f'Baja #{self.id}: {self.cantidad} x {self.producto.nombre}'

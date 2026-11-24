@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
 
@@ -71,3 +72,57 @@ class Producto(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+class Recepcion(models.Model):
+    '''
+    HU24: la mercancía que llega de un proveedor, registrada contra su factura.
+    Sirve para saber qué productos de esa factura ya se ingresaron al inventario y cuáles faltan,
+    y así no ingresarlos dos veces.
+    '''
+    proveedor = models.CharField(max_length=100)
+    numero_factura = models.CharField(max_length=50)
+    fecha = models.DateField()
+    registrada_por = models.ForeignKey(User, on_delete=models.PROTECT, related_name='recepciones')
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creada_en']
+        constraints = [
+            # 24B: la misma factura no se registra dos veces para el mismo proveedor
+            models.UniqueConstraint(fields=['proveedor', 'numero_factura'], name='recepcion_factura_unica_por_proveedor'),
+        ]
+
+    def total_lineas(self):
+        return self.lineas.count()
+
+    def lineas_ingresadas(self):
+        return self.lineas.filter(ingresada=True).count()
+
+    def esta_completa(self):
+        total = self.total_lineas()
+        return total > 0 and self.lineas_ingresadas() == total
+
+    def __str__(self):
+        return f'{self.proveedor} · factura {self.numero_factura}'
+
+
+class LineaRecepcion(models.Model):
+    '''Un producto de la factura, con la cantidad que debe llegar. Pendiente hasta que se ingresa.'''
+    recepcion = models.ForeignKey(Recepcion, on_delete=models.CASCADE, related_name='lineas')
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name='lineas_recepcion')
+    cantidad = models.DecimalField(max_digits=10, decimal_places=3)       # en la unidad base del producto
+    ingresada = models.BooleanField(default=False)
+    ingresada_por = models.ForeignKey(User, on_delete=models.PROTECT, related_name='lineas_ingresadas',
+                                      null=True, blank=True)
+    ingresada_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['id']
+        constraints = [
+            # un producto aparece una sola vez por factura: así no se duplican las unidades
+            models.UniqueConstraint(fields=['recepcion', 'producto'], name='linea_producto_unico_por_recepcion'),
+        ]
+
+    def __str__(self):
+        return f'{self.cantidad} x {self.producto.nombre}'
